@@ -8,8 +8,7 @@ namespace engine {
 
 pid_t start_recording(const std::string& wav_path, const std::string& err_path);
 bool stop_recording(pid_t pid);
-bool run_whisper(const std::string& model_path, const std::string& wav_path,
-                 const std::string& out_prefix);
+std::string transcribe(const std::string& model_path, const std::string& wav_path);
 bool copy_to_clipboard(const std::string& text);
 bool send_notification(const std::string& message);
 

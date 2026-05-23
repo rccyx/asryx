@@ -47,26 +47,12 @@ int main()
       std::ofstream notify(bin_path / "notify-send");
       notify << "#!/bin/sh\nexit 0\n";
     }
-    {
-      std::filesystem::create_directories(home_path / ".local/bin");
-      std::ofstream whisper_cli(home_path / ".local/bin/whisper-cli");
-      whisper_cli << "#!/bin/sh\n"
-                     "while [ \"$#\" -gt 0 ]; do\n"
-                     "  if [ \"$1\" = \"-of\" ]; then shift; out=\"$1\"; fi\n"
-                     "  shift\n"
-                     "done\n"
-                     "printf 'Test transcription.\\n' > \"${out}.txt\"\n";
-    }
     std::filesystem::permissions(bin_path / "pw-record", std::filesystem::perms::owner_exec,
                                  std::filesystem::perm_options::add);
     std::filesystem::permissions(bin_path / "wl-copy", std::filesystem::perms::owner_exec,
                                  std::filesystem::perm_options::add);
     std::filesystem::permissions(bin_path / "notify-send", std::filesystem::perms::owner_exec,
                                  std::filesystem::perm_options::add);
-    std::filesystem::permissions(home_path / ".local/bin/whisper-cli",
-                                 std::filesystem::perms::owner_exec,
-                                 std::filesystem::perm_options::add);
-
     setenv("HOME", home_path.c_str(), 1);
     setenv("XDG_RUNTIME_DIR", runtime_path.c_str(), 1);
     const char* path_env = std::getenv("PATH");
@@ -100,3 +86,4 @@ int main()
     return 1;
   }
 }
+

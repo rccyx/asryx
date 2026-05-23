@@ -74,29 +74,6 @@ sync_whisper_repo() {
   git -C "${whisper_dir}" submodule update --init --recursive
 }
 
-build_whisper_cli() {
-  local build_dir="${whisper_dir}/build/release"
-
-  _asryx_log "configuring whisper.cpp"
-  cmake --fresh -S "${whisper_dir}" -B "${build_dir}" -G Ninja -DCMAKE_BUILD_TYPE=Release
-
-  _asryx_log "building whisper-cli"
-  cmake --build "${build_dir}" --target whisper-cli
-}
-
-install_whisper_cli_binary() {
-  local build_dir="${whisper_dir}/build/release"
-  local dst_bin="${HOME}/.local/bin/whisper-cli"
-  local built=""
-
-  built="$(find "${build_dir}" -type f -name whisper-cli -perm -111 2>/dev/null | head -n 1 || true)"
-  [[ -n "${built}" ]] || _asryx_die "could not locate whisper-cli under ${build_dir}"
-
-  _asryx_ensure_dir "${HOME}/.local/bin"
-  _asryx_log "installing ${dst_bin}"
-  install -m 0755 "${built}" "${dst_bin}"
-}
-
 write_default_config_if_missing() {
   local cfg="${HOME}/.asryx.conf"
   [[ -e "${cfg}" ]] && return 0
@@ -126,20 +103,19 @@ warn_path_if_needed() {
 main() {
   _asryx_require_home
   _asryx_install_runtime_dependencies
-  build_asryx
 
   local whisper_sha=""
   whisper_sha="$(read_whisper_sha)"
   _asryx_log "whisper.cpp pin: ${whisper_sha}"
 
-  install_asryx_binary
-  write_installed_whisper_pin "${whisper_sha}"
   sync_whisper_repo "${whisper_sha}"
-  build_whisper_cli
-  install_whisper_cli_binary
+  write_installed_whisper_pin "${whisper_sha}"
+  build_asryx
+  install_asryx_binary
   write_default_config_if_missing
   install_and_select_model
   warn_path_if_needed
 }
 
 main "$@"
+
