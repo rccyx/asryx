@@ -26,9 +26,11 @@
 
 <br/>
 
-Voice is always faster than typing. The problem is everything built around it: hold a key (pessimal), open a (bloated) app, pick a provider/model (decision fatigue), send audio to a server (privacy), wait for a response (speed), hope the network holds (unreliable).
+Voice is always faster than typing, it's supposed to be instant.
 
-It's supposed to be instant, not a dependency chain with a mic attached.
+The problem is everything built around the tooling: hold a key (pessimal), open an app (bloated), pick a provider/model (decision fatigue), send audio to a server (privacy), wait for a response (speed), hope the network holds (unreliable).
+
+Basically dependency hell.
 
 </details>
 
@@ -37,7 +39,9 @@ It's supposed to be instant, not a dependency chain with a mic attached.
 
 <br/>
 
-Asryx is a lightweight native Linux voice-to-text toggle.
+A lightweight native Linux voice-to-text toggle. Does one thing, and does it well. You compile it on your own machine.
+
+The way it works is:
 
 Press once to record. Talk as long as you want. Press again to stop, it transcribes locally, copies the text to your clipboard, notifies you, and cleans up.
 
@@ -59,13 +63,9 @@ You paste the text anywhere.
 
 That's it.
 
-```text
-record -> stop -> transcribe -> copy -> notify -> clean
-```
+Repeated key presses are safe. If a compositor double-fires the keybind or the key repeats, it **won't** spawn five recorders or corrupt the active transcription.
 
-Repeated key presses are safe. If a compositor double-fires the keybind or the key repeats, it won' spawn five recorders or corrupt the active transcription.
-
-Also, the temporary audio and transcript files are cleaned after the run.
+Also, the temporary audio and transcripts are cleaned after the run.
 
 You might also want to keybind it, for example, on Hyprland:
 
@@ -73,7 +73,7 @@ You might also want to keybind it, for example, on Hyprland:
 bind = ALT, W, exec, asryx
 ```
 
-Also, make sure you se a clipboard manager, so the transcript is recoverable if you accidentally copy something else after a long recording.
+Also, make sure you **set** a clipboard manager, so the transcript is recoverable if you accidentally copy something else after a long recording.
 
 </details>
 
@@ -92,7 +92,7 @@ No cloud. No GUI(s). No Python env hell. No background daemon(s). No dashboard(s
 
 <br/>
 
-The binary wraps `whisper.cpp` with a native Linux runtime. The model inference is `whisper-cli`.
+The binary wraps `whisper.cpp` with a native Linux runtime.
 
 Asryx owns everything around it: recording lifecycle, toggle state, locking, model lookup, clipboard, notifications, cleanup.
 
@@ -106,7 +106,7 @@ press
 
 press again
   -> stop recorder
-  -> run whisper-cli on the wav
+  -> run whisper on the wav
   -> read transcript
   -> copy to clipboard
   -> notify
@@ -151,7 +151,7 @@ state
 out.txt
 ```
 
-After a successful transcription, all of it is deleted. The transcript survives only through your clipboard.
+After a successful transcription, all of it is deleted. The transcript survives only through the clipboard.
 
 </details>
 
@@ -164,7 +164,7 @@ cd asryx && bash ./scripts/bootstrap
 
 Dependencies are installed automatically on **Debian/Ubuntu** (apt), **Fedora** (dnf), and **Arch-based** (pacman) systems.
 
-If you're not on a supported distro, ensure the following tools are installed before rerunning the bootstrap script:
+If you're not on a supported distro, ensure they these utilities are installed before rerunning the script:
 
 Core Utilities:
 
@@ -254,7 +254,7 @@ Outputs: (idle, recording, or transcribing)
 
 <br/>
 
-It removes Asryx-owned files.
+It removes asryx owned files.
 
 ```text
 ~/.local/bin/asryx
@@ -341,12 +341,9 @@ Models ending in `.en` are English-only. All others are multilingual.
 | large-v3-turbo     | 1.5 GiB | ~2.3 GB | ~8x            |
 | large-v1 / v2 / v3 | 2.9 GiB | ~3.9 GB | 1x             |
 
-Speed is relative to large on CPU. RAM figures are whisper.cpp runtime.
+Speed is relative to large on CPU.
 
 `base.en` is the default. It covers most use cases and starts fast.
-
-> [!TIP]
-> `large-v3-turbo` is the best upgrade: near-large accuracy at roughly small-level speed, for about the same disk cost as `medium`.
 
 Installed models live in:
 
