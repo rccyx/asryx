@@ -30,8 +30,6 @@ Voice is always faster than typing, it's supposed to be instant.
 
 The problem is everything built around the tooling: hold a key (pessimal), open an app (bloated), pick a provider/model (decision fatigue), send audio to a server (privacy), wait for a response (speed), hope the network holds (unreliable).
 
-Basically dependency hell.
-
 </details>
 
 <details>
@@ -160,8 +158,6 @@ After a successful transcription, all of it is deleted. The transcript survives 
 git clone https://github.com/rccyx/asryx
 cd asryx && bash ./scripts/install
 ```
-
-The install script does not install system packages. It checks that the required tools exist and exits with a missing-tool list if the machine is not ready.
 
 Ensure these utilities are installed before running the script:
 
