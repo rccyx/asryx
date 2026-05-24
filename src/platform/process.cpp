@@ -49,6 +49,28 @@ std::vector<char*> build_argv(const std::vector<std::string>& argv)
   return c_argv;
 }
 
+void redirect_stdout_to_devnull()
+{
+  int fd = open("/dev/null", O_WRONLY);
+  if (fd != -1) {
+    dup2(fd, STDOUT_FILENO);
+    close(fd);
+  }
+}
+
+void redirect_stderr_to_file(const std::string& path)
+{
+  if (path.empty()) {
+    return;
+  }
+
+  int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  if (fd != -1) {
+    dup2(fd, STDERR_FILENO);
+    close(fd);
+  }
+}
+
 } // namespace
 
 pid_t spawn_process_background(const std::vector<std::string>& argv,
@@ -64,13 +86,9 @@ pid_t spawn_process_background(const std::vector<std::string>& argv,
   }
 
   if (pid == 0) {
-    if (!redirect_file.empty()) {
-      int fd = open(redirect_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
-      if (fd != -1) {
-        dup2(fd, STDERR_FILENO);
-        close(fd);
-      }
-    }
+    redirect_stdout_to_devnull();
+    redirect_stderr_to_file(redirect_file);
+
     auto c_argv = build_argv(argv);
     execvp(c_argv[0], c_argv.data());
     _exit(127);

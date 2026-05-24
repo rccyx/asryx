@@ -9,9 +9,10 @@ target_include_directories(
   PRIVATE "${PROJECT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}"
 )
 target_compile_definitions(asryx_tests PRIVATE ASRYX_TESTING)
+target_link_libraries(asryx_tests PRIVATE whisper)
+
 asryx_enable_warnings(asryx_tests)
 asryx_enable_hardening(asryx_tests)
 asryx_enable_sanitizers(asryx_tests)
 
 add_test(NAME unit_tests COMMAND asryx_tests)
-

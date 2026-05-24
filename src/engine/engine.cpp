@@ -3,56 +3,63 @@
 #include "platform/process.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
-#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
 
-#ifndef ASRYX_TESTING
-#  include <whisper.h>
+#if defined(__GNUC__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wshadow"
+#endif
+
+#include <whisper.h>
+
+#if defined(__GNUC__)
+#  pragma GCC diagnostic pop
 #endif
 
 namespace engine {
 
-#ifndef ASRYX_TESTING
 namespace {
 
-bool is_chunk(const std::vector<std::uint8_t>& bytes, size_t offset, const char* id)
+constexpr std::uint16_t wav_pcm = 1;
+constexpr std::uint16_t wav_extensible = 65534;
+constexpr float pcm16_scale = 32768.0F;
+
+bool chunk_is(const std::vector<std::uint8_t>& bytes, size_t offset, const char* id)
 {
-  return offset + 4U <= bytes.size() && std::memcmp(bytes.data() + offset, id, 4U) == 0;
+  return offset + 4 <= bytes.size() && std::memcmp(bytes.data() + offset, id, 4) == 0;
 }
 
 std::uint16_t read_u16_le(const std::vector<std::uint8_t>& bytes, size_t offset)
 {
-  if (offset + 2U > bytes.size()) {
+  if (offset + 2 > bytes.size()) {
     throw std::runtime_error("invalid wav header");
   }
 
-  const auto low = static_cast<std::uint16_t>(bytes[offset]);
-  const auto high = static_cast<std::uint16_t>(bytes[offset + 1U]);
-  return static_cast<std::uint16_t>(low | static_cast<std::uint16_t>(high << 8U));
+  return static_cast<std::uint16_t>(bytes[offset]) |
+         static_cast<std::uint16_t>(static_cast<std::uint16_t>(bytes[offset + 1]) << 8U);
 }
 
 std::uint32_t read_u32_le(const std::vector<std::uint8_t>& bytes, size_t offset)
 {
-  if (offset + 4U > bytes.size()) {
+  if (offset + 4 > bytes.size()) {
     throw std::runtime_error("invalid wav header");
   }
 
-  const auto b0 = static_cast<std::uint32_t>(bytes[offset]);
-  const auto b1 = static_cast<std::uint32_t>(bytes[offset + 1U]);
-  const auto b2 = static_cast<std::uint32_t>(bytes[offset + 2U]);
-  const auto b3 = static_cast<std::uint32_t>(bytes[offset + 3U]);
-
-  return b0 | (b1 << 8U) | (b2 << 16U) | (b3 << 24U);
+  return static_cast<std::uint32_t>(bytes[offset]) |
+         (static_cast<std::uint32_t>(bytes[offset + 1]) << 8U) |
+         (static_cast<std::uint32_t>(bytes[offset + 2]) << 16U) |
+         (static_cast<std::uint32_t>(bytes[offset + 3]) << 24U);
 }
 
 std::vector<std::uint8_t> read_file(const std::string& path)
@@ -65,106 +72,119 @@ std::vector<std::uint8_t> read_file(const std::string& path)
   return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 }
 
-float pcm16_to_float(std::uint16_t raw)
+void validate_wav_format(std::uint16_t audio_format, std::uint16_t channels,
+                         std::uint32_t sample_rate, std::uint16_t bits_per_sample)
 {
-  auto sample = static_cast<std::int32_t>(raw);
-  if (sample >= 32768) {
-    sample -= 65536;
+  const bool supported_format = audio_format == wav_pcm || audio_format == wav_extensible;
+  if (!supported_format) {
+    throw std::runtime_error("unsupported wav format: expected PCM");
   }
 
-  return static_cast<float>(sample) / 32768.0F;
+  if (channels != 1 || sample_rate != WHISPER_SAMPLE_RATE || bits_per_sample != 16) {
+    throw std::runtime_error("unsupported wav format: expected 16 kHz mono s16 PCM");
+  }
 }
 
-void read_fmt_chunk(const std::vector<std::uint8_t>& bytes, size_t chunk_data,
-                    std::uint16_t& audio_format, std::uint16_t& channels,
-                    std::uint32_t& sample_rate, std::uint16_t& bits_per_sample)
+std::vector<float> decode_pcm16(const std::vector<std::uint8_t>& bytes, size_t data_offset,
+                                size_t data_size)
 {
-  audio_format = read_u16_le(bytes, chunk_data);
-  channels = read_u16_le(bytes, chunk_data + 2U);
-  sample_rate = read_u32_le(bytes, chunk_data + 4U);
-  bits_per_sample = read_u16_le(bytes, chunk_data + 14U);
+  data_size -= data_size % 2U;
+
+  std::vector<float> samples;
+  samples.reserve(data_size / 2U);
+
+  for (size_t i = data_offset; i < data_offset + data_size; i += 2) {
+    const auto raw = static_cast<std::uint16_t>(bytes[i]) |
+                     static_cast<std::uint16_t>(static_cast<std::uint16_t>(bytes[i + 1]) << 8U);
+    const auto sample = static_cast<std::int16_t>(raw);
+    samples.push_back(static_cast<float>(sample) / pcm16_scale);
+  }
+
+  return samples;
 }
 
 std::vector<float> read_pcm16_wav(const std::string& path)
 {
   const auto bytes = read_file(path);
 
-  if (bytes.size() < 44U || !is_chunk(bytes, 0U, "RIFF") || !is_chunk(bytes, 8U, "WAVE")) {
+  if (bytes.size() < 44 || !chunk_is(bytes, 0, "RIFF") || !chunk_is(bytes, 8, "WAVE")) {
     throw std::runtime_error("unsupported wav file: expected RIFF/WAVE");
   }
 
   bool found_fmt = false;
   bool found_data = false;
+
   std::uint16_t audio_format = 0;
   std::uint16_t channels = 0;
   std::uint32_t sample_rate = 0;
   std::uint16_t bits_per_sample = 0;
+
   size_t data_offset = 0;
   size_t data_size = 0;
+
   size_t offset = 12;
+  while (offset + 8 <= bytes.size()) {
+    const std::uint32_t declared_size = read_u32_le(bytes, offset + 4);
+    const size_t chunk_data = offset + 8;
+    const size_t remaining = bytes.size() - chunk_data;
 
-  while (offset + 8U <= bytes.size()) {
-    const auto chunk_size = static_cast<size_t>(read_u32_le(bytes, offset + 4U));
-    const size_t chunk_data = offset + 8U;
-
-    if (chunk_size > bytes.size() - chunk_data) {
-      throw std::runtime_error("invalid wav chunk size");
-    }
-
-    if (is_chunk(bytes, offset, "fmt ")) {
-      if (chunk_size < 16U) {
+    if (chunk_is(bytes, offset, "fmt ")) {
+      if (declared_size > remaining || declared_size < 16) {
         throw std::runtime_error("invalid wav fmt chunk");
       }
-      read_fmt_chunk(bytes, chunk_data, audio_format, channels, sample_rate, bits_per_sample);
+
+      audio_format = read_u16_le(bytes, chunk_data);
+      channels = read_u16_le(bytes, chunk_data + 2);
+      sample_rate = read_u32_le(bytes, chunk_data + 4);
+      bits_per_sample = read_u16_le(bytes, chunk_data + 14);
       found_fmt = true;
     }
-    else if (is_chunk(bytes, offset, "data")) {
+    else if (chunk_is(bytes, offset, "data")) {
       data_offset = chunk_data;
-      data_size = chunk_size;
+      data_size = std::min(static_cast<size_t>(declared_size), remaining);
       found_data = true;
+      break;
     }
 
-    offset = chunk_data + chunk_size + (chunk_size % 2U);
+    if (declared_size > remaining) {
+      break;
+    }
+
+    offset = chunk_data + declared_size + (declared_size % 2U);
   }
 
   if (!found_fmt || !found_data) {
     throw std::runtime_error("invalid wav file: missing fmt or data chunk");
   }
 
-  if (audio_format != 1U) {
-    throw std::runtime_error("unsupported wav format: expected PCM");
+  validate_wav_format(audio_format, channels, sample_rate, bits_per_sample);
+  return decode_pcm16(bytes, data_offset, data_size);
+}
+
+bool wait_until_process_exits(pid_t pid)
+{
+  for (int attempt = 0; attempt < 100; ++attempt) {
+    if (!platform::is_process_running(pid)) {
+      return true;
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
 
-  if (channels != 1U || sample_rate != static_cast<std::uint32_t>(WHISPER_SAMPLE_RATE) ||
-      bits_per_sample != 16U) {
-    throw std::runtime_error("unsupported wav format: expected 16 kHz mono s16 PCM");
-  }
-
-  if (data_size % 2U != 0U) {
-    throw std::runtime_error("invalid wav data size");
-  }
-
-  std::vector<float> samples;
-  samples.reserve(data_size / 2U);
-
-  for (size_t i = data_offset; i < data_offset + data_size; i += 2U) {
-    samples.push_back(pcm16_to_float(read_u16_le(bytes, i)));
-  }
-
-  return samples;
+  return !platform::is_process_running(pid);
 }
 
 int thread_count()
 {
-  const unsigned int detected = std::thread::hardware_concurrency();
-  if (detected == 0U) {
+  const auto detected = std::thread::hardware_concurrency();
+  if (detected == 0) {
     return 4;
   }
 
   return static_cast<int>(std::min(4U, detected));
 }
 
-struct WhisperContextDeleter
+struct WhisperDeleter
 {
   void operator()(whisper_context* ctx) const
   {
@@ -175,7 +195,6 @@ struct WhisperContextDeleter
 };
 
 } // namespace
-#endif
 
 pid_t start_recording(const std::string& wav_path, const std::string& err_path)
 {
@@ -184,7 +203,7 @@ pid_t start_recording(const std::string& wav_path, const std::string& err_path)
     args = {"pw-record", "--format=s16", "--rate=16000", "--channels=1", wav_path};
   }
   else if (platform::command_exists("arecord")) {
-    args = {"arecord", "-f", "S16_LE", "-c", "1", "-r", "16000", wav_path};
+    args = {"arecord", "-q", "-t", "wav", "-f", "S16_LE", "-c", "1", "-r", "16000", wav_path};
   }
   else {
     throw std::runtime_error("No recorder tool found (need pw-record or arecord)");
@@ -194,6 +213,7 @@ pid_t start_recording(const std::string& wav_path, const std::string& err_path)
   if (pid == -1) {
     throw std::runtime_error("Failed to start recorder process");
   }
+
   return pid;
 }
 
@@ -202,31 +222,31 @@ bool stop_recording(pid_t pid)
   if (pid <= 0) {
     return false;
   }
+
   platform::stop_process(pid, 2);
-  platform::wait_process(pid);
-  return true;
+  if (wait_until_process_exits(pid)) {
+    return true;
+  }
+
+  platform::stop_process(pid, 15);
+  if (wait_until_process_exits(pid)) {
+    return true;
+  }
+
+  platform::stop_process(pid, 9);
+  return wait_until_process_exits(pid);
 }
 
 std::string transcribe(const std::string& model_path, const std::string& wav_path)
 {
-#ifdef ASRYX_TESTING
-  static_cast<void>(model_path);
-  static_cast<void>(wav_path);
-  return "Test transcription.\n";
-#else
   if (!std::filesystem::exists(model_path)) {
     throw std::runtime_error("model file does not exist: " + model_path);
   }
 
   auto samples = read_pcm16_wav(wav_path);
-  if (samples.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
-    throw std::runtime_error("wav file is too large for whisper");
-  }
 
   whisper_context_params context_params = whisper_context_default_params();
-  context_params.use_gpu = false;
-
-  std::unique_ptr<whisper_context, WhisperContextDeleter> ctx(
+  std::unique_ptr<whisper_context, WhisperDeleter> ctx(
       whisper_init_from_file_with_params(model_path.c_str(), context_params));
 
   if (ctx == nullptr) {
@@ -239,14 +259,15 @@ std::string transcribe(const std::string& model_path, const std::string& wav_pat
   params.print_realtime = false;
   params.print_timestamps = false;
   params.no_timestamps = true;
+  params.language = "en";
 
-  const int sample_count = static_cast<int>(samples.size());
-  if (whisper_full(ctx.get(), params, samples.data(), sample_count) != 0) {
+  if (whisper_full(ctx.get(), params, samples.data(), static_cast<int>(samples.size())) != 0) {
     throw std::runtime_error("whisper transcription failed");
   }
 
   std::string output;
   const int segments = whisper_full_n_segments(ctx.get());
+
   for (int i = 0; i < segments; ++i) {
     const char* text = whisper_full_get_segment_text(ctx.get(), i);
     if (text != nullptr) {
@@ -255,7 +276,6 @@ std::string transcribe(const std::string& model_path, const std::string& wav_pat
   }
 
   return output;
-#endif
 }
 
 bool copy_to_clipboard(const std::string& text)
@@ -263,9 +283,11 @@ bool copy_to_clipboard(const std::string& text)
   if (platform::command_exists("wl-copy")) {
     return platform::run_process_with_stdin({"wl-copy"}, text);
   }
+
   if (platform::command_exists("xclip")) {
     return platform::run_process_with_stdin({"xclip", "-selection", "clipboard"}, text);
   }
+
   std::cerr << "Warning: Neither wl-copy nor xclip is available to copy transcript.\n";
   return false;
 }
@@ -275,6 +297,7 @@ bool send_notification(const std::string& message)
   if (platform::command_exists("notify-send")) {
     return platform::run_process_blocking({"notify-send", "asryx", message});
   }
+
   return false;
 }
 

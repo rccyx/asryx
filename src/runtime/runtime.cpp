@@ -63,8 +63,10 @@ void clean_stale_payload(const std::filesystem::path& runtime_dir)
 {
   platform::safe_delete_file(runtime_dir / "rec.pid");
   platform::safe_delete_file(runtime_dir / "rec.wav");
+  platform::safe_delete_file(runtime_dir / "rec.raw");
   platform::safe_delete_file(runtime_dir / "rec.err");
   platform::safe_delete_file(runtime_dir / "state");
+  platform::safe_delete_file(runtime_dir / "out.txt");
 }
 
 std::string read_state_file(const std::filesystem::path& runtime_dir)
@@ -137,8 +139,12 @@ void start_recording(const std::filesystem::path& runtime_dir)
 
 void stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pid)
 {
+  if (!engine::stop_recording(rec_pid)) {
+    engine::send_notification("recorder did not stop");
+    return;
+  }
+
   write_state(runtime_dir, "transcribing");
-  engine::stop_recording(rec_pid);
 
   auto cfg = config::load_config();
   auto model_path = model::get_model_path(cfg.model);
@@ -202,4 +208,3 @@ void toggle()
 }
 
 } // namespace runtime
-
