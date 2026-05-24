@@ -70,7 +70,8 @@ std::vector<std::uint8_t> read_file(const std::string& path)
     throw std::runtime_error("failed to open wav file: " + path);
   }
 
-  return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+  return std::vector<std::uint8_t>(std::istreambuf_iterator<char>(file),
+                                   std::istreambuf_iterator<char>());
 }
 
 void validate_wav_format(std::uint16_t audio_format, std::uint16_t channels,
