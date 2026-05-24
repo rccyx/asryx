@@ -143,7 +143,15 @@ std::vector<float> read_pcm16_wav(const std::string& path)
     }
     else if (chunk_is(bytes, offset, "data")) {
       data_offset = chunk_data;
-      data_size = std::min(static_cast<size_t>(declared_size), remaining);
+      // declared_size may be 0 if pw-record exited without finalising the
+      // WAV header (common when killed via signal without a controlling
+      // terminal). Fall back to actual bytes present in the file.
+      if (declared_size == 0 || declared_size > remaining) {
+        data_size = remaining;
+      }
+      else {
+        data_size = static_cast<size_t>(declared_size);
+      }
       found_data = true;
       break;
     }
@@ -186,8 +194,12 @@ int thread_count()
   return static_cast<int>(std::min(4U, detected));
 }
 
-const char* whisper_language(const std::string& language)
+const char* whisper_language(whisper_context* ctx, const std::string& language)
 {
+  if (whisper_is_multilingual(ctx) == 0) {
+    return "en";
+  }
+
   if (language.empty() || language == "auto") {
     return nullptr;
   }
@@ -265,7 +277,7 @@ std::string transcribe(const std::string& model_path, const std::string& wav_pat
     throw std::runtime_error("failed to initialize whisper model: " + model_path);
   }
 
-  const char* language_arg = whisper_language(language);
+  const char* language_arg = whisper_language(ctx.get(), language);
 
   whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
   params.n_threads = thread_count();
@@ -274,7 +286,7 @@ std::string transcribe(const std::string& model_path, const std::string& wav_pat
   params.print_timestamps = false;
   params.no_timestamps = true;
   params.language = language_arg;
-  params.detect_language = language_arg == nullptr;
+  params.detect_language = false;
 
   if (whisper_full(ctx.get(), params, samples.data(), static_cast<int>(samples.size())) != 0) {
     throw std::runtime_error("whisper transcription failed");
