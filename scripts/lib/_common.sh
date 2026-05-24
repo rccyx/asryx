@@ -14,16 +14,6 @@ _asryx_have() {
   command -v "$1" >/dev/null 2>&1
 }
 
-_asryx_run_as_root() {
-  if [[ "$(id -u)" -eq 0 ]]; then
-    "$@"
-    return 0
-  fi
-
-  _asryx_have sudo || _asryx_die "sudo is required to install system packages"
-  sudo "$@"
-}
-
 _asryx_require_home() {
   [[ -n "${HOME:-}" ]] || _asryx_die "HOME is not set"
   [[ "${HOME}" == /* ]] || _asryx_die "HOME is not absolute: ${HOME}"

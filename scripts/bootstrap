@@ -22,6 +22,29 @@ read_whisper_sha() {
   tr -d '[:space:]' <"${path}"
 }
 
+sync_whisper_repo() {
+  local whisper_sha="$1"
+
+  _asryx_ensure_dir "${HOME}/.local/opt"
+
+  if [[ -d "${whisper_dir}/.git" ]]; then
+    _asryx_log "updating whisper.cpp"
+    git -C "${whisper_dir}" fetch --depth 1 origin "${whisper_sha}"
+  else
+    if [[ -e "${whisper_dir}" ]]; then
+      _asryx_die "${whisper_dir} exists but is not a git checkout"
+    fi
+
+    _asryx_log "cloning whisper.cpp"
+    git clone "${whisper_url}" "${whisper_dir}"
+    git -C "${whisper_dir}" fetch --depth 1 origin "${whisper_sha}"
+  fi
+
+  git -C "${whisper_dir}" checkout --detach "${whisper_sha}"
+  git -C "${whisper_dir}" fsck --no-progress
+  git -C "${whisper_dir}" submodule update --init --recursive
+}
+
 build_asryx() {
   _asryx_log "configuring asryx"
   cmake --fresh --preset release -S "${repo_dir}"
@@ -52,28 +75,6 @@ write_installed_whisper_pin() {
   mv -f "${tmp}" "${pin_path}"
 }
 
-sync_whisper_repo() {
-  local whisper_sha="$1"
-
-  _asryx_ensure_dir "${HOME}/.local/opt"
-
-  if [[ -d "${whisper_dir}/.git" ]]; then
-    _asryx_log "updating whisper.cpp"
-    git -C "${whisper_dir}" fetch --depth 1 origin "${whisper_sha}"
-  else
-    if [[ -e "${whisper_dir}" ]]; then
-      _asryx_die "${whisper_dir} exists but is not a git checkout"
-    fi
-    _asryx_log "cloning whisper.cpp"
-    git clone "${whisper_url}" "${whisper_dir}"
-    git -C "${whisper_dir}" fetch --depth 1 origin "${whisper_sha}"
-  fi
-
-  git -C "${whisper_dir}" checkout --detach "${whisper_sha}"
-  git -C "${whisper_dir}" fsck --no-progress
-  git -C "${whisper_dir}" submodule update --init --recursive
-}
-
 write_default_config_if_missing() {
   local cfg="${HOME}/.asryx.conf"
   [[ -e "${cfg}" ]] && return 0
@@ -92,6 +93,7 @@ install_and_select_model() {
 
 warn_path_if_needed() {
   local bin_dir="${HOME}/.local/bin"
+
   case ":${PATH}:" in
     *":${bin_dir}:"*) return 0 ;;
   esac
@@ -102,20 +104,19 @@ warn_path_if_needed() {
 
 main() {
   _asryx_require_home
-  _asryx_install_runtime_dependencies
+  _asryx_require_runtime_dependencies
 
   local whisper_sha=""
   whisper_sha="$(read_whisper_sha)"
   _asryx_log "whisper.cpp pin: ${whisper_sha}"
 
   sync_whisper_repo "${whisper_sha}"
-  write_installed_whisper_pin "${whisper_sha}"
   build_asryx
   install_asryx_binary
+  write_installed_whisper_pin "${whisper_sha}"
   write_default_config_if_missing
   install_and_select_model
   warn_path_if_needed
 }
 
 main "$@"
-

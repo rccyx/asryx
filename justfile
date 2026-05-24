@@ -31,7 +31,7 @@ tidy_sources := "find src tests -type f \\( -name '*.cpp' -o -name '*.hpp' \\) -
 	cppcheck --enable=all --error-exitcode=1 --inline-suppr --suppress=checkersReport --suppress=missingInclude --suppress=normalCheckLevelMaxBranches --suppressions-list=cppcheck.suppressions -I . --project=build/release/compile_commands.json
 
 @shellcheck:
-	shellcheck -x scripts/bootstrap scripts/install-dev-deps scripts/uninstall scripts/lib/_common.sh scripts/lib/_deps.sh
+	shellcheck -x scripts/bootstrap scripts/uninstall scripts/lib/_common.sh scripts/lib/_deps.sh
 
 @build:
 	cmake --fresh --preset release
