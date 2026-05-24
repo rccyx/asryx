@@ -158,10 +158,10 @@ After a successful transcription, all of it is deleted. The transcript survives 
 
 ```bash
 git clone https://github.com/rccyx/asryx
-cd asryx && bash ./scripts/bootstrap
+cd asryx && bash ./scripts/install
 ```
 
-The bootstrap does not install system packages. It checks that the required tools exist and exits with a missing-tool list if the machine is not ready.
+The install script does not install system packages. It checks that the required tools exist and exits with a missing-tool list if the machine is not ready.
 
 Ensure these utilities are installed before running the script:
 

@@ -4,7 +4,7 @@ set -Eeuo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repo_dir="$(cd -- "${script_dir}/.." && pwd -P)"
 
-ASRYX_LOG_PREFIX="asryx bootstrap"
+ASRYX_LOG_PREFIX="asryx install"
 # shellcheck source=scripts/lib/_common.sh
 source "${script_dir}/lib/_common.sh"
 # shellcheck source=scripts/lib/_deps.sh

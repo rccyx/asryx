@@ -16,8 +16,8 @@ jobs:
       - name: base runner
         uses: ./.github/actions/base-runner
 
-      - name: bootstrap
-        run: bash ./scripts/bootstrap
+      - name: install
+        run: bash ./scripts/install
 
       - name: lint
         run: just l

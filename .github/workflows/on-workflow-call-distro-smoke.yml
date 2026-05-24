@@ -103,7 +103,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo -u ci -H bash -lc "cd '${GITHUB_WORKSPACE}' && bash ./scripts/bootstrap"
+          sudo -u ci -H bash -lc "cd '${GITHUB_WORKSPACE}' && bash ./scripts/install"
 
       - name: verify install
         shell: bash
