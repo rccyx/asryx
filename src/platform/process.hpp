@@ -12,7 +12,6 @@ pid_t spawn_process_background(const std::vector<std::string>& argv,
                                const std::string& redirect_file = "");
 int wait_process(pid_t pid);
 bool run_process_blocking(const std::vector<std::string>& argv);
-bool run_process_foreground(const std::vector<std::string>& argv);
 bool run_process_with_stdin(const std::vector<std::string>& argv, const std::string& input);
 bool is_process_running(pid_t pid);
 bool stop_process(pid_t pid, int sig = 2);

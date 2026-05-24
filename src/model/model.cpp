@@ -16,6 +16,12 @@ namespace model {
 
 namespace {
 
+bool is_supported_model_name(const std::string& name)
+{
+  const auto& supported = get_supported_models();
+  return std::find(supported.begin(), supported.end(), name) != supported.end();
+}
+
 std::filesystem::path model_dir()
 {
   return platform::get_home_relative_path(std::string(constants::paths::data_dir_rel));
@@ -125,9 +131,7 @@ void list_models()
 
 void install_model(const std::string& name)
 {
-  const auto& supported = get_supported_models();
-
-  if (std::find(supported.begin(), supported.end(), name) == supported.end()) {
+  if (!is_supported_model_name(name)) {
     throw std::runtime_error("unsupported model size: " + name);
   }
 
@@ -157,10 +161,13 @@ void install_model(const std::string& name)
 
 void use_model(const std::string& name)
 {
-  const auto& supported = get_supported_models();
-
-  if (std::find(supported.begin(), supported.end(), name) == supported.end()) {
+  if (!is_supported_model_name(name)) {
     throw std::runtime_error("unsupported model size: " + name);
+  }
+
+  if (!is_model_installed(name)) {
+    throw std::runtime_error("model '" + name +
+                             "' is not installed. Install it with: asryx --model install " + name);
   }
 
   auto cfg = config::load_config();
@@ -172,11 +179,21 @@ void use_model(const std::string& name)
 
 void uninstall_model(const std::string& name)
 {
+  if (!is_supported_model_name(name)) {
+    throw std::runtime_error("unsupported model size: " + name);
+  }
+
   const auto path = std::filesystem::path(get_model_path(name));
 
-  if (!std::filesystem::exists(path)) {
+  if (!file_exists_nonempty(path)) {
     std::cout << "Model " << name << " is not installed.\n";
     return;
+  }
+
+  const auto cfg = config::load_config();
+  if (cfg.model == name) {
+    throw std::runtime_error("cannot uninstall active model '" + name +
+                             "'; switch models first with: asryx --model use <other>");
   }
 
   platform::safe_delete_file(path);

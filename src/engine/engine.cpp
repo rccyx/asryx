@@ -4,6 +4,7 @@
 #include "platform/process.hpp"
 
 #include <algorithm>
+#include <cerrno>
 #include <chrono>
 #include <csignal>
 #include <cstdint>
@@ -15,6 +16,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <sys/wait.h>
 #include <thread>
 #include <vector>
 
@@ -171,11 +173,23 @@ std::vector<float> read_pcm16_wav(const std::string& path)
   return decode_pcm16(bytes, data_offset, data_size);
 }
 
-bool wait_until_process_exits(pid_t pid)
+bool wait_until_recorder_exits(pid_t pid)
 {
   for (int attempt = 0; attempt < 100; ++attempt) {
-    if (!platform::is_process_running(pid)) {
+    int status = 0;
+    const pid_t result = waitpid(pid, &status, WNOHANG);
+    if (result == pid) {
       return true;
+    }
+
+    if (result == -1) {
+      if (errno != ECHILD) {
+        return false;
+      }
+
+      if (!platform::is_process_running(pid)) {
+        return true;
+      }
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -247,17 +261,17 @@ bool stop_recording(pid_t pid)
   }
 
   platform::stop_process(pid, SIGINT);
-  if (wait_until_process_exits(pid)) {
+  if (wait_until_recorder_exits(pid)) {
     return true;
   }
 
   platform::stop_process(pid, SIGTERM);
-  if (wait_until_process_exits(pid)) {
+  if (wait_until_recorder_exits(pid)) {
     return true;
   }
 
   platform::stop_process(pid, SIGKILL);
-  return wait_until_process_exits(pid);
+  return wait_until_recorder_exits(pid);
 }
 
 std::string transcribe(const std::string& model_path, const std::string& wav_path,
