@@ -45,6 +45,10 @@ target_link_libraries(asryx PRIVATE whisper)
 asryx_enable_warnings(asryx)
 asryx_enable_hardening(asryx)
 asryx_enable_sanitizers(asryx)
+set_source_files_properties(
+  "${PROJECT_SOURCE_DIR}/src/engine/engine.cpp"
+  PROPERTIES COMPILE_OPTIONS "-Wno-shadow"
+)
 
 enable_testing()
 add_subdirectory(tests)
