@@ -1,6 +1,7 @@
 #include "runtime/runtime.hpp"
 
 #include "config/config.hpp"
+#include "constants/constants.hpp"
 #include "engine/engine.hpp"
 #include "model/model.hpp"
 #include "platform/fs.hpp"
@@ -22,7 +23,7 @@ namespace {
 
 std::filesystem::path lock_dir_for(const std::filesystem::path& runtime_dir)
 {
-  return runtime_dir / "lock";
+  return runtime_dir / std::string(constants::runtime::lock_dir_name);
 }
 
 bool read_pid_file(const std::filesystem::path& path, pid_t& pid)
@@ -38,15 +39,17 @@ bool acquire_lock(const std::filesystem::path& runtime_dir)
 
   std::error_code ec;
   if (std::filesystem::create_directory(lock_dir, ec)) {
-    std::ofstream(lock_dir / "pid") << getpid() << "\n";
+    std::ofstream(lock_dir / std::string(constants::runtime::pid_file_name)) << getpid() << "\n";
     return true;
   }
 
   pid_t pid = 0;
-  if (!read_pid_file(lock_dir / "pid", pid) || !platform::is_process_running(pid)) {
+  if (!read_pid_file(lock_dir / std::string(constants::runtime::pid_file_name), pid) ||
+      !platform::is_process_running(pid))
+  {
     platform::safe_delete_directory(lock_dir);
     if (std::filesystem::create_directory(lock_dir, ec)) {
-      std::ofstream(lock_dir / "pid") << getpid() << "\n";
+      std::ofstream(lock_dir / std::string(constants::runtime::pid_file_name)) << getpid() << "\n";
       return true;
     }
   }
@@ -61,12 +64,12 @@ void release_lock(const std::filesystem::path& runtime_dir)
 
 void clean_stale_payload(const std::filesystem::path& runtime_dir)
 {
-  platform::safe_delete_file(runtime_dir / "rec.pid");
-  platform::safe_delete_file(runtime_dir / "rec.wav");
-  platform::safe_delete_file(runtime_dir / "rec.raw");
-  platform::safe_delete_file(runtime_dir / "rec.err");
-  platform::safe_delete_file(runtime_dir / "state");
-  platform::safe_delete_file(runtime_dir / "out.txt");
+  platform::safe_delete_file(runtime_dir / std::string(constants::runtime::recorder_pid_file));
+  platform::safe_delete_file(runtime_dir / std::string(constants::runtime::recorder_wav_file));
+  platform::safe_delete_file(runtime_dir / std::string(constants::runtime::recorder_raw_file));
+  platform::safe_delete_file(runtime_dir / std::string(constants::runtime::recorder_error_file));
+  platform::safe_delete_file(runtime_dir / std::string(constants::runtime::state_file));
+  platform::safe_delete_file(runtime_dir / std::string(constants::runtime::transcript_file));
 }
 
 std::string read_text_file(const std::filesystem::path& path)
@@ -93,7 +96,7 @@ std::string read_text_file(const std::filesystem::path& path)
 
 std::string read_state_file(const std::filesystem::path& runtime_dir)
 {
-  auto state_file = runtime_dir / "state";
+  auto state_file = runtime_dir / std::string(constants::runtime::state_file);
   if (!std::filesystem::exists(state_file)) {
     return "";
   }
@@ -110,12 +113,15 @@ std::string read_state_file(const std::filesystem::path& runtime_dir)
 bool has_live_lock(const std::filesystem::path& runtime_dir)
 {
   pid_t pid = 0;
-  return read_pid_file(lock_dir_for(runtime_dir) / "pid", pid) && platform::is_process_running(pid);
+  return read_pid_file(lock_dir_for(runtime_dir) / std::string(constants::runtime::pid_file_name),
+                       pid) &&
+         platform::is_process_running(pid);
 }
 
 bool has_live_recorder(const std::filesystem::path& runtime_dir, pid_t& pid)
 {
-  return read_pid_file(runtime_dir / "rec.pid", pid) && platform::is_process_running(pid);
+  return read_pid_file(runtime_dir / std::string(constants::runtime::recorder_pid_file), pid) &&
+         platform::is_process_running(pid);
 }
 
 std::string trim(std::string value)
@@ -134,13 +140,14 @@ std::string trim(std::string value)
 
 void write_state(const std::filesystem::path& runtime_dir, const std::string& state)
 {
-  std::ofstream file(runtime_dir / "state");
+  std::ofstream file(runtime_dir / std::string(constants::runtime::state_file));
   file << state << "\n";
 }
 
 void print_recorder_error(const std::filesystem::path& runtime_dir)
 {
-  auto error = trim(read_text_file(runtime_dir / "rec.err"));
+  auto error =
+      trim(read_text_file(runtime_dir / std::string(constants::runtime::recorder_error_file)));
   if (!error.empty()) {
     std::cerr << error << "\n";
   }
@@ -158,12 +165,12 @@ void start_recording(const std::filesystem::path& runtime_dir)
                              cfg.model);
   }
 
-  auto wav_path = runtime_dir / "rec.wav";
-  auto err_path = runtime_dir / "rec.err";
+  auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
+  auto err_path = runtime_dir / std::string(constants::runtime::recorder_error_file);
   pid_t pid = engine::start_recording(wav_path.string(), err_path.string());
 
-  std::ofstream(runtime_dir / "rec.pid") << pid << "\n";
-  write_state(runtime_dir, "recording");
+  std::ofstream(runtime_dir / std::string(constants::runtime::recorder_pid_file)) << pid << "\n";
+  write_state(runtime_dir, std::string(constants::runtime::recording_state));
   engine::send_notification("recording…");
 }
 
@@ -175,11 +182,11 @@ void stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pid
     return;
   }
 
-  write_state(runtime_dir, "transcribing");
+  write_state(runtime_dir, std::string(constants::runtime::transcribing_state));
 
   auto cfg = config::load_config();
   auto model_path = model::get_model_path(cfg.model);
-  auto wav_path = runtime_dir / "rec.wav";
+  auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
   auto output = trim(engine::transcribe(model_path, wav_path.string(), cfg.language));
 
   if (output.empty()) {
@@ -202,14 +209,14 @@ std::string get_status()
 
   pid_t rec_pid = 0;
   if (has_live_recorder(runtime_dir, rec_pid)) {
-    return "recording";
+    return std::string(constants::runtime::recording_state);
   }
 
-  if (state == "transcribing" && has_live_lock(runtime_dir)) {
-    return "transcribing";
+  if (state == constants::runtime::transcribing_state && has_live_lock(runtime_dir)) {
+    return std::string(constants::runtime::transcribing_state);
   }
 
-  return "idle";
+  return std::string(constants::runtime::idle_state);
 }
 
 void toggle()

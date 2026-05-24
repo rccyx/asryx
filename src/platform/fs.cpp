@@ -1,5 +1,7 @@
 #include "platform/fs.hpp"
 
+#include "constants/constants.hpp"
+
 #include <cstdlib>
 #include <stdexcept>
 #include <unistd.h>
@@ -7,40 +9,49 @@
 
 namespace platform {
 
-std::filesystem::path get_home_relative_path(const std::string& rel_path)
+namespace {
+
+std::filesystem::path require_home_path()
 {
   const char* home = std::getenv("HOME");
   if (!home || *home == '\0') {
     throw std::runtime_error("HOME environment variable not set");
   }
-  return std::filesystem::path(home) / rel_path;
+
+  return {home};
+}
+
+} // namespace
+
+std::filesystem::path get_home_relative_path(const std::string& rel_path)
+{
+  return require_home_path() / rel_path;
 }
 
 std::filesystem::path get_runtime_directory()
 {
   const char* xdg = std::getenv("XDG_RUNTIME_DIR");
   if (xdg && *xdg != '\0') {
-    return std::filesystem::path(xdg) / "asryx";
+    return std::filesystem::path(xdg) / std::string(constants::runtime::dir_name);
   }
-  return std::filesystem::path("/tmp") / ("asryx-" + std::to_string(getuid()));
+  return std::filesystem::path(constants::runtime::fallback_tmp_root) /
+         (std::string(constants::runtime::dir_name) + "-" + std::to_string(getuid()));
 }
 
 bool is_owned_path(const std::filesystem::path& path)
 {
   std::filesystem::path canonical_path = std::filesystem::weakly_canonical(path);
-  const char* home = std::getenv("HOME");
-  if (!home || *home == '\0') {
+  std::filesystem::path home_path;
+
+  try {
+    home_path = std::filesystem::weakly_canonical(require_home_path());
+  }
+  catch (const std::runtime_error&) {
     return false;
   }
-  std::filesystem::path home_path = std::filesystem::weakly_canonical(home);
 
-  std::vector<std::filesystem::path> allowed = {home_path / ".local/bin/asryx",
-                                                home_path / ".local/bin/whisper-cli",
-                                                home_path / ".local/opt/whisper.cpp",
-                                                home_path / ".local/share/asryx",
-                                                home_path / ".cache/asryx",
-                                                home_path / ".asryx.conf",
-                                                get_runtime_directory()};
+  std::vector<std::filesystem::path> allowed = constants::paths::owned_home_paths(home_path);
+  allowed.push_back(get_runtime_directory());
 
   for (const auto& prefix : allowed) {
     std::filesystem::path canonical_prefix = std::filesystem::weakly_canonical(prefix);

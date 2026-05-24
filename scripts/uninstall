@@ -5,23 +5,25 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ASRYX_LOG_PREFIX="asryx uninstall"
 # shellcheck source=scripts/lib/_common.sh
 source "${script_dir}/lib/_common.sh"
+# shellcheck source=scripts/lib/_constants.sh
+source "${script_dir}/lib/_constants.sh"
 
 main() {
   _asryx_require_home
 
   local owned=(
-    "${HOME}/.local/bin/asryx"
-    "${HOME}/.local/bin/whisper-cli"
-    "${HOME}/.local/opt/asryx"
-    "${HOME}/.local/opt/whisper.cpp"
-    "${HOME}/.local/share/asryx"
-    "${HOME}/.cache/asryx"
-    "${HOME}/.asryx.conf"
-    "/tmp/asryx-$(id -u)"
+    "$(_asryx_home_path "${ASRYX_ASRYX_BIN_REL}")"
+    "$(_asryx_home_path "${ASRYX_WHISPER_CLI_BIN_REL}")"
+    "$(_asryx_home_path "${ASRYX_ASRYX_OPT_DIR_REL}")"
+    "$(_asryx_home_path "${ASRYX_WHISPER_DIR_REL}")"
+    "$(_asryx_home_path "${ASRYX_SHARE_DIR_REL}")"
+    "$(_asryx_home_path "${ASRYX_CACHE_DIR_REL}")"
+    "$(_asryx_config_path)"
+    "$(_asryx_runtime_fallback_dir)"
   )
 
   if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
-    owned+=("${XDG_RUNTIME_DIR}/asryx")
+    owned+=("${XDG_RUNTIME_DIR}/${ASRYX_RUNTIME_DIR_NAME}")
   fi
 
   local path=""

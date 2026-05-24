@@ -1,5 +1,6 @@
 #include "config/config.hpp"
 
+#include "constants/constants.hpp"
 #include "platform/fs.hpp"
 
 #include <filesystem>
@@ -12,7 +13,7 @@ namespace config {
 Config load_config()
 {
   Config cfg;
-  auto path = platform::get_home_relative_path(".asryx.conf");
+  auto path = platform::get_home_relative_path(std::string(constants::config::file_name));
   std::ifstream file(path);
   if (!file.is_open()) {
     return cfg;
@@ -32,10 +33,10 @@ Config load_config()
     std::string key = line.substr(0, pos);
     std::string val = line.substr(pos + 1);
 
-    if (key == "model") {
+    if (key == constants::config::model_key) {
       cfg.model = val;
     }
-    else if (key == "language") {
+    else if (key == constants::config::language_key) {
       cfg.language = val;
     }
   }
@@ -45,8 +46,9 @@ Config load_config()
 
 void save_config(const Config& cfg)
 {
-  auto path = platform::get_home_relative_path(".asryx.conf");
-  auto tmp_path = platform::get_home_relative_path(".asryx.conf.tmp");
+  auto path = platform::get_home_relative_path(std::string(constants::config::file_name));
+  auto tmp_path = platform::get_home_relative_path(std::string(constants::config::file_name) +
+                                                   std::string(constants::config::temp_suffix));
 
   {
     std::ofstream file(tmp_path);
@@ -55,8 +57,8 @@ void save_config(const Config& cfg)
                                tmp_path.string());
     }
 
-    file << "model=" << cfg.model << "\n";
-    file << "language=" << cfg.language << "\n";
+    file << constants::config::model_key << "=" << cfg.model << "\n";
+    file << constants::config::language_key << "=" << cfg.language << "\n";
   }
 
   std::filesystem::rename(tmp_path, path);

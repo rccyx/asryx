@@ -1,6 +1,7 @@
 #include "model/model.hpp"
 
 #include "config/config.hpp"
+#include "constants/constants.hpp"
 #include "platform/fs.hpp"
 #include "platform/process.hpp"
 
@@ -17,12 +18,12 @@ namespace {
 
 std::filesystem::path model_dir()
 {
-  return platform::get_home_relative_path(".local/share/asryx");
+  return platform::get_home_relative_path(std::string(constants::paths::data_dir_rel));
 }
 
 std::filesystem::path whisper_source_dir()
 {
-  return platform::get_home_relative_path(".local/opt/whisper.cpp");
+  return platform::get_home_relative_path(std::string(constants::paths::whisper_checkout_rel));
 }
 
 std::filesystem::path whisper_model_path(const std::string& name)

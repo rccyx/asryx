@@ -7,14 +7,16 @@ repo_dir="$(cd -- "${script_dir}/.." && pwd -P)"
 ASRYX_LOG_PREFIX="asryx install"
 # shellcheck source=scripts/lib/_common.sh
 source "${script_dir}/lib/_common.sh"
+# shellcheck source=scripts/lib/_constants.sh
+source "${script_dir}/lib/_constants.sh"
 # shellcheck source=scripts/lib/_deps.sh
 source "${script_dir}/lib/_deps.sh"
 
 export GIT_TERMINAL_PROMPT=0
 
-model_name="base.en"
+model_name="${ASRYX_DEFAULT_MODEL}"
 whisper_url="https://github.com/ggerganov/whisper.cpp.git"
-whisper_dir="${HOME}/.local/opt/whisper.cpp"
+whisper_dir="$(_asryx_home_path "${ASRYX_WHISPER_DIR_REL}")"
 
 read_whisper_sha() {
   local path="${repo_dir}/versions/whisper-cpp-sha"
@@ -25,7 +27,7 @@ read_whisper_sha() {
 sync_whisper_repo() {
   local whisper_sha="$1"
 
-  _asryx_ensure_dir "${HOME}/.local/opt"
+  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_LOCAL_OPT_DIR_REL}")"
 
   if [[ -d "${whisper_dir}/.git" ]]; then
     _asryx_log "updating whisper.cpp"
@@ -55,10 +57,11 @@ build_asryx() {
 
 install_asryx_binary() {
   local src_bin="${repo_dir}/build/release/asryx"
-  local dst_bin="${HOME}/.local/bin/asryx"
+  local dst_bin=""
+  dst_bin="$(_asryx_home_path "${ASRYX_ASRYX_BIN_REL}")"
 
   [[ -x "${src_bin}" ]] || _asryx_die "missing built binary: ${src_bin}"
-  _asryx_ensure_dir "${HOME}/.local/bin"
+  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_LOCAL_BIN_DIR_REL}")"
 
   _asryx_log "installing ${dst_bin}"
   install -m 0755 "${src_bin}" "${dst_bin}"
@@ -66,8 +69,10 @@ install_asryx_binary() {
 
 write_installed_whisper_pin() {
   local whisper_sha="$1"
-  local versions_dir="${HOME}/.local/share/asryx/versions"
-  local pin_path="${versions_dir}/whisper-cpp-sha"
+  local versions_dir
+  versions_dir="$(dirname "$(_asryx_home_path "${ASRYX_WHISPER_PIN_REL}")")"
+  local pin_path
+  pin_path="$(_asryx_home_path "${ASRYX_WHISPER_PIN_REL}")"
   local tmp="${pin_path}.tmp.$$"
 
   _asryx_ensure_dir "${versions_dir}"
@@ -76,15 +81,17 @@ write_installed_whisper_pin() {
 }
 
 write_default_config_if_missing() {
-  local cfg="${HOME}/.asryx.conf"
+  local cfg
+  cfg="$(_asryx_config_path)"
   [[ -e "${cfg}" ]] && return 0
 
   _asryx_log "writing ${cfg}"
-  printf 'model=%s\n' "${model_name}" >"${cfg}"
+  printf 'model=%s\nlanguage=%s\n' "${model_name}" "${ASRYX_DEFAULT_LANGUAGE}" >"${cfg}"
 }
 
 install_and_select_model() {
-  local asryx_bin="${HOME}/.local/bin/asryx"
+  local asryx_bin
+  asryx_bin="$(_asryx_home_path "${ASRYX_ASRYX_BIN_REL}")"
 
   [[ -x "${asryx_bin}" ]] || _asryx_die "missing installed binary: ${asryx_bin}"
   "${asryx_bin}" --model install "${model_name}"
@@ -92,7 +99,8 @@ install_and_select_model() {
 }
 
 warn_path_if_needed() {
-  local bin_dir="${HOME}/.local/bin"
+  local bin_dir
+  bin_dir="$(_asryx_home_path "${ASRYX_LOCAL_BIN_DIR_REL}")"
 
   case ":${PATH}:" in
     *":${bin_dir}:"*) return 0 ;;

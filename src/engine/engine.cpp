@@ -1,5 +1,6 @@
 #include "engine/engine.hpp"
 
+#include "constants/constants.hpp"
 #include "platform/process.hpp"
 
 #include <algorithm>
@@ -196,10 +197,10 @@ int thread_count()
 const char* whisper_language(whisper_context* ctx, const std::string& language)
 {
   if (whisper_is_multilingual(ctx) == 0) {
-    return "en";
+    return constants::config::english_language.data();
   }
 
-  if (language.empty() || language == "auto") {
+  if (language.empty() || language == constants::config::auto_language) {
     return nullptr;
   }
 
@@ -321,7 +322,8 @@ bool copy_to_clipboard(const std::string& text)
 bool send_notification(const std::string& message)
 {
   if (platform::command_exists("notify-send")) {
-    return platform::run_process_blocking({"notify-send", "asryx", message});
+    return platform::run_process_blocking(
+        {"notify-send", std::string(constants::app_name), message});
   }
 
   return false;
