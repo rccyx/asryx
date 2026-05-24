@@ -8,6 +8,7 @@ namespace config {
 struct Config
 {
   std::string model = "base.en";
+  std::string language = "auto";
 };
 
 Config load_config();

@@ -86,7 +86,7 @@ void run_whisper_model_downloader(const std::string& name)
   std::cout << "Downloading model " << name << " via whisper.cpp downloader...\n";
 
   const std::string script = R"(cd "$1" && bash ./models/download-ggml-model.sh "$2")";
-  const bool success = platform::run_process_foreground(
+  const bool success = platform::run_process_blocking(
       {"bash", "-c", script, "asryx-model-download", source_dir.string(), name});
 
   if (!success) {

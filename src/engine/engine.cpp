@@ -17,14 +17,14 @@
 #include <thread>
 #include <vector>
 
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wshadow"
 #endif
 
 #include <whisper.h>
 
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #  pragma GCC diagnostic pop
 #endif
 
@@ -95,8 +95,9 @@ std::vector<float> decode_pcm16(const std::vector<std::uint8_t>& bytes, size_t d
   samples.reserve(data_size / 2U);
 
   for (size_t i = data_offset; i < data_offset + data_size; i += 2) {
-    const auto raw =
-        static_cast<std::uint16_t>(bytes[i]) | static_cast<std::uint16_t>(bytes[i + 1] << 8U);
+    const auto high = static_cast<std::uint16_t>(bytes[i + 1]);
+    const auto low = static_cast<std::uint16_t>(bytes[i]);
+    const auto raw = static_cast<std::uint16_t>(low | static_cast<std::uint16_t>(high << 8U));
     const auto sample = static_cast<std::int16_t>(raw);
     samples.push_back(static_cast<float>(sample) / pcm16_scale);
   }
@@ -185,6 +186,15 @@ int thread_count()
   return static_cast<int>(std::min(4U, detected));
 }
 
+const char* whisper_language(const std::string& language)
+{
+  if (language.empty() || language == "auto") {
+    return nullptr;
+  }
+
+  return language.c_str();
+}
+
 struct WhisperDeleter
 {
   void operator()(whisper_context* ctx) const
@@ -238,7 +248,8 @@ bool stop_recording(pid_t pid)
   return wait_until_process_exits(pid);
 }
 
-std::string transcribe(const std::string& model_path, const std::string& wav_path)
+std::string transcribe(const std::string& model_path, const std::string& wav_path,
+                       const std::string& language)
 {
   if (!std::filesystem::exists(model_path)) {
     throw std::runtime_error("model file does not exist: " + model_path);
@@ -254,13 +265,16 @@ std::string transcribe(const std::string& model_path, const std::string& wav_pat
     throw std::runtime_error("failed to initialize whisper model: " + model_path);
   }
 
+  const char* language_arg = whisper_language(language);
+
   whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
   params.n_threads = thread_count();
   params.print_progress = false;
   params.print_realtime = false;
   params.print_timestamps = false;
   params.no_timestamps = true;
-  params.language = "en";
+  params.language = language_arg;
+  params.detect_language = language_arg == nullptr;
 
   if (whisper_full(ctx.get(), params, samples.data(), static_cast<int>(samples.size())) != 0) {
     throw std::runtime_error("whisper transcription failed");
