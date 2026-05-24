@@ -5,7 +5,6 @@
 #include "platform/process.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -23,11 +22,6 @@ std::filesystem::path model_dir()
 
 std::filesystem::path whisper_source_dir()
 {
-  const char* env_dir = std::getenv("ASRYX_WHISPER_SOURCE_DIR");
-  if (env_dir != nullptr && *env_dir != '\0') {
-    return {env_dir};
-  }
-
   return platform::get_home_relative_path(".local/opt/whisper.cpp");
 }
 
