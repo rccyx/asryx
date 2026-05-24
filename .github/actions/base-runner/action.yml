@@ -5,22 +5,8 @@ description: install the fixed ubuntu ci toolchain
 runs:
   using: composite
   steps:
-    - name: install ci toolchain
+    - name: install ci dependencies
       shell: bash
       run: |
         set -euo pipefail
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          ca-certificates \
-          just \
-          cmake \
-          ninja-build \
-          build-essential \
-          clang \
-          llvm \
-          clang-format \
-          clang-tidy \
-          cppcheck \
-          python3 \
-          shellcheck
-        sudo rm -rf /var/lib/apt/lists/*
+        bash ./scripts/install-dev-deps

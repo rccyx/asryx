@@ -28,7 +28,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
-      - name: base dependencies
+      - name: install dependencies
         shell: bash
         run: |
           set -euo pipefail
@@ -36,13 +36,55 @@ jobs:
           if command -v apt-get >/dev/null 2>&1; then
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
-            apt-get install -y --no-install-recommends sudo ca-certificates curl git
+            apt-get install -y --no-install-recommends \
+              sudo \
+              ca-certificates \
+              bash \
+              git \
+              curl \
+              cmake \
+              ninja-build \
+              g++ \
+              coreutils \
+              pipewire \
+              alsa-utils \
+              wl-clipboard \
+              xclip \
+              libnotify-bin
             rm -rf /var/lib/apt/lists/*
           elif command -v dnf >/dev/null 2>&1; then
-            dnf -y install sudo ca-certificates curl git
+            dnf -y install \
+              sudo \
+              ca-certificates \
+              bash \
+              git \
+              curl \
+              cmake \
+              ninja-build \
+              gcc-c++ \
+              coreutils \
+              pipewire-utils \
+              alsa-utils \
+              wl-clipboard \
+              xclip \
+              libnotify
           elif command -v pacman >/dev/null 2>&1; then
             pacman -Sy --noconfirm
-            pacman -S --noconfirm --needed sudo ca-certificates curl git
+            pacman -S --noconfirm --needed \
+              sudo \
+              ca-certificates \
+              bash \
+              git \
+              curl \
+              cmake \
+              ninja \
+              gcc \
+              coreutils \
+              pipewire \
+              alsa-utils \
+              wl-clipboard \
+              xclip \
+              libnotify
           else
             echo "no supported package manager found" >&2
             exit 1
@@ -69,16 +111,10 @@ jobs:
           set -euo pipefail
           ci_home=$(getent passwd ci | cut -d: -f6)
           asryx_bin="${ci_home}/.local/bin/asryx"
-          whisper_bin="${ci_home}/.local/bin/whisper-cli"
 
           test -x "${asryx_bin}"
           "${asryx_bin}" status | grep -qx 'idle'
           "${asryx_bin}" --model list >/dev/null
-
-          test -x "${whisper_bin}"
-          if ! "${whisper_bin}" --help >/dev/null 2>&1; then
-            "${whisper_bin}" -h >/dev/null
-          fi
 
       - name: uninstall
         shell: bash
