@@ -70,8 +70,7 @@ std::vector<std::uint8_t> read_file(const std::string& path)
     throw std::runtime_error("failed to open wav file: " + path);
   }
 
-  return std::vector<std::uint8_t>(std::istreambuf_iterator<char>(file),
-                                   std::istreambuf_iterator<char>());
+  return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 }
 
 void validate_wav_format(std::uint16_t audio_format, std::uint16_t channels,
@@ -146,7 +145,7 @@ std::vector<float> read_pcm16_wav(const std::string& path)
       data_offset = chunk_data;
       // declared_size may be 0 if pw-record exited without finalising the
       // WAV header (common when killed via signal without a controlling
-      // terminal). Fall back to actual bytes present in the file.
+      // terminal) -> fall back to acual bytes present in the file.
       if (declared_size == 0 || declared_size > remaining) {
         data_size = remaining;
       }
