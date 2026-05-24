@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <csignal>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -94,8 +95,8 @@ std::vector<float> decode_pcm16(const std::vector<std::uint8_t>& bytes, size_t d
   samples.reserve(data_size / 2U);
 
   for (size_t i = data_offset; i < data_offset + data_size; i += 2) {
-    const auto raw = static_cast<std::uint16_t>(bytes[i]) |
-                     static_cast<std::uint16_t>(static_cast<std::uint16_t>(bytes[i + 1]) << 8U);
+    const auto raw =
+        static_cast<std::uint16_t>(bytes[i]) | static_cast<std::uint16_t>(bytes[i + 1] << 8U);
     const auto sample = static_cast<std::int16_t>(raw);
     samples.push_back(static_cast<float>(sample) / pcm16_scale);
   }
@@ -171,7 +172,7 @@ bool wait_until_process_exits(pid_t pid)
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
 
-  return !platform::is_process_running(pid);
+  return false;
 }
 
 int thread_count()
@@ -223,17 +224,17 @@ bool stop_recording(pid_t pid)
     return false;
   }
 
-  platform::stop_process(pid, 2);
+  platform::stop_process(pid, SIGINT);
   if (wait_until_process_exits(pid)) {
     return true;
   }
 
-  platform::stop_process(pid, 15);
+  platform::stop_process(pid, SIGTERM);
   if (wait_until_process_exits(pid)) {
     return true;
   }
 
-  platform::stop_process(pid, 9);
+  platform::stop_process(pid, SIGKILL);
   return wait_until_process_exits(pid);
 }
 

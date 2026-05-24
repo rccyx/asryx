@@ -98,12 +98,12 @@ bool has_live_recorder(const std::filesystem::path& runtime_dir, pid_t& pid)
 
 std::string trim(std::string value)
 {
-  while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back())) != 0) {
+  while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) {
     value.pop_back();
   }
 
   size_t start = 0;
-  while (start < value.size() && std::isspace(static_cast<unsigned char>(value[start])) != 0) {
+  while (start < value.size() && std::isspace(static_cast<unsigned char>(value[start]))) {
     ++start;
   }
 

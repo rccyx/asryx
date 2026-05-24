@@ -44,11 +44,8 @@ bool is_owned_path(const std::filesystem::path& path)
 
   for (const auto& prefix : allowed) {
     std::filesystem::path canonical_prefix = std::filesystem::weakly_canonical(prefix);
-    if (canonical_path == canonical_prefix) {
-      return true;
-    }
     auto rel = canonical_path.lexically_relative(canonical_prefix);
-    if (!rel.empty() && rel.string() != "." && rel.string().find("..") == std::string::npos) {
+    if (!rel.empty() && rel.string().find("..") == std::string::npos) {
       return true;
     }
   }
