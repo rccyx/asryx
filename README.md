@@ -37,8 +37,6 @@ The problem is everything built around the tooling: hold a key (pessimal), open 
 
 <br/>
 
-A lightweight native Linux voice-to-text toggle. Does one thing, and does it well. You compile it on your own machine.
-
 The way it works is:
 
 Press once to record. Talk as long as you want. Press again to stop, it transcribes locally, copies the text to your clipboard, notifies you, and cleans up.
@@ -57,9 +55,7 @@ asryx
 
 Says "copied to clipboard"
 
-You paste the text anywhere.
-
-That's it.
+You paste the text anywhere. That's it.
 
 Repeated key presses are safe. If a compositor double-fires the keybind or the key repeats, it **won't** spawn five recorders or corrupt the active transcription.
 
@@ -79,7 +75,7 @@ Also, make sure you **set** a clipboard manager, so the transcript is recoverabl
 <summary><strong>How is this different?</strong></summary>
 <br/>
 
-Basically:
+Basically UX: One command to install. Works immediately after. But most importantly:
 
 No cloud. No GUI(s). No Python env hell. No background daemon(s). No dashboard(s). No container(s). No subscription(s), no persistent key pressing, no choose from these 965 models you'll never use, no do these 22 steps first and maybe it works. No Node, no Python again.
 
@@ -90,7 +86,7 @@ No cloud. No GUI(s). No Python env hell. No background daemon(s). No dashboard(s
 
 <br/>
 
-The binary embeds `whisper.cpp` inside a native Linux runtime.
+The binary links against `whisper.cpp` as a library and runs transcription in-process, no subprocess, no server, nothing leaving your machine.
 
 Asryx owns everything around it: recording lifecycle, toggle state, locking, model lookup, local inference, clipboard, notifications, cleanup.
 
@@ -98,22 +94,30 @@ The installer clones the pinned [whisper.cpp](https://github.com/ggml-org/whispe
 
 ```text
 press
+  -> acquire lock (prevents double invocation)
   -> start local recorder
   -> write recorder pid
   -> mark state as recording
+  -> notify "recording..."
 
 press again
-  -> stop recorder
-  -> read the wav
+  -> acquire lock
+  -> stop recorder (SIGINT, escalates to SIGTERM then SIGKILL if needed)
+  -> mark state as transcribing
+  -> decode wav into memory
   -> run whisper.cpp in-process
-  -> copy transcript to clipboard
-  -> notify
+  -> trim transcript
+  -> copy to clipboard
+  -> notify "copied to clipboard"
   -> clean runtime files
+  -> release lock
 ```
 
 The first press starts the recorder. PipeWire through `pw-record` is preferred, falls back to ALSA through `arecord`. Audio is captured as a temporary WAV file: mono, 16 kHz, signed 16-bit.
 
-The second press stops the recorder by signal, waits for the WAV to finalize, decodes it into memory, runs local inference through `whisper.cpp`, trims the transcript, and pushes it into the clipboard.
+The second press stops the recorder by signal, waits for the process to exit, decodes the WAV into memory as float samples, and runs local inference through `whisper.cpp`. The transcript is trimmed and pushed into the clipboard. If nothing was transcribed, it notifies and cleans up without touching the clipboard.
+
+Language: if the active model is English only (e.g. `base.en`), English is always used regardless of config. If the model is multilingual and `language` is set to `auto`, Whisper detects the spoken language automatically. Otherwise the configured language code is passed directly to the model.
 
 Clipboard output:
 
@@ -266,7 +270,7 @@ It refuses dangerous paths such as `/`, `$HOME`, empty paths, and non-absolute p
 
 ## CLI
 
-Surface area:
+The surface area is tiny:
 
 ```
 asryx
@@ -321,7 +325,7 @@ large-v3-turbo
 large
 ```
 
-Models ending in `.en` are English-only. All others are multilingual.
+Models ending in `.en` are English only. All others are multilingual.
 
 | Model              | Disk    | RAM     | Speed vs large |
 | ------------------ | ------- | ------- | -------------- |
@@ -366,7 +370,12 @@ You can also edit it manually.
 
 ```bash
 model=small.en
+language=auto
 ```
+
+`model` sets the active Whisper model. `language` controls what language the model transcribes in.
+
+Set `language` to any Whisper supported language code (e.g. `fr`, `de`, `ar`, `zh`) or leave it as `auto` to let the model detect the spoken language automatically. Setting it explicitly is a bit faster, `auto` makes Whisper spend time figuring out the language before it can transcribe.
 
 ## Audio
 
