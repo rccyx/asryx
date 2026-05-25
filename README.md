@@ -182,7 +182,7 @@ This is just C++ and standard Linux, nothing exotic, so ensure these utilities a
 
 - `pw-record` (PipeWire) or `arecord` (ALSA fallback)
 
-To check what your audio backend:
+To check what's your audio backend:
 
 ```
 which pw-record || which arecord
@@ -192,7 +192,7 @@ which pw-record || which arecord
 
 - `wl-copy` (Wayland) or `xclip` (X11 fallback).
 
-To check which window manager you have:
+To check what your window manager:
 
 ```
 echo $XDG_SESSION_TYPE
@@ -400,6 +400,8 @@ English-only models (`tiny.en`, `base.en`, `small.en`, `medium.en`) only accept 
 
 <details>
 <summary>Supported language codes</summary>
+
+<br/>
 
 | Code | Language       |
 | ---- | -------------- |
