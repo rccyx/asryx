@@ -19,8 +19,7 @@ void write_fake_model(const std::string& name)
   model_file << "fake model content";
 }
 
-template <typename Fn>
-bool runtime_error_equals(Fn fn, const std::string& expected)
+template <typename Fn> bool runtime_error_equals(Fn fn, const std::string& expected)
 {
   try {
     fn();
@@ -67,7 +66,7 @@ void run_test_model()
             std::string(constants::config::english_language));
 
   ASSERT_TRUE(runtime_error_equals([] { model::use_language("jrnfejfef"); },
-                                  "unsupported language: jrnfejfef"));
+                                   "unsupported language: jrnfejfef"));
   cfg = config::load_config();
   ASSERT_EQ(cfg.language, std::string(constants::config::english_language));
 
