@@ -171,39 +171,12 @@ std::filesystem::path write_runtime_log(const std::filesystem::path& runtime_dir
   return path;
 }
 
-bool is_auto_language(const std::string& language)
-{
-  return language.empty() || language == constants::config::auto_language;
-}
-
-bool is_english_only_model(const std::string& model_name)
-{
-  return model_name.size() >= 3 && model_name.ends_with(".en");
-}
-
-std::string transcription_language_for(const config::Config& cfg)
-{
-  if (!is_english_only_model(cfg.model)) {
-    if (is_auto_language(cfg.language)) {
-      return "";
-    }
-
-    return cfg.language;
-  }
-
-  if (is_auto_language(cfg.language) || cfg.language == constants::config::english_language) {
-    return std::string(constants::config::english_language);
-  }
-
-  throw std::runtime_error("model '" + cfg.model + "' is English-only but config language is '" +
-                           cfg.language + "'");
-}
-
 void start_recording(const std::filesystem::path& runtime_dir)
 {
   clean_stale_payload(runtime_dir);
 
   auto cfg = config::load_config();
+  model::validate_config(cfg);
   if (!model::is_model_installed(cfg.model)) {
     throw std::runtime_error("model '" + cfg.model +
                              "' is not installed. Install it with: asryx --model install " +
@@ -230,7 +203,7 @@ void stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pid
   write_state(runtime_dir, std::string(constants::runtime::transcribing_state));
 
   auto cfg = config::load_config();
-  const auto language = transcription_language_for(cfg);
+  const auto language = model::transcription_language_for(cfg);
   auto model_path = model::get_model_path(cfg.model);
   auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
   auto output = trim(engine::transcribe(model_path, wav_path.string(), language));
@@ -314,3 +287,4 @@ void toggle()
 }
 
 } // namespace runtime
+
