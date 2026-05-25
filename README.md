@@ -77,7 +77,7 @@ Also, make sure you **set** a clipboard manager, so the transcript is recoverabl
 
 Basically UX: One command to install. Works immediately after. But most importantly:
 
-No cloud. No GUI(s). No Python env hell. No background daemon(s). No dashboard(s). No container(s). No subscription(s), no persistent key pressing, no choose from these 965 models you'll never use, no do these 22 steps first and maybe it works. No Node, no Python again.
+No cloud. No GUI(s). No Python env hell. No background daemon(s). No systemd, No dashboard(s). No container(s). No subscription(s), no persistent key pressing, no choose from these 965 models you'll never use, no do these 22 steps first and maybe it works. No Node, no Python again.
 
 </details>
 
@@ -86,9 +86,9 @@ No cloud. No GUI(s). No Python env hell. No background daemon(s). No dashboard(s
 
 <br/>
 
-The binary links against `whisper.cpp` as a library and runs transcription in-process, no subprocess, no server, nothing leaving your machine.
+You compile a final asryx binary on your machine that links against `whisper.cpp` as a library and runs transcription in-process, no subprocess, no server, nothing leaving your machine.
 
-Asryx owns everything around it: recording lifecycle, toggle state, locking, model lookup, local inference, clipboard, notifications, cleanup.
+The binary owns everything around it: recording lifecycle, toggle state, locking, model lookup, local inference, clipboard, notifications, cleanup.
 
 The installer clones the pinned [whisper.cpp](https://github.com/ggml-org/whisper.cpp) source into `~/.local/opt/whisper.cpp`, then builds `asryx` against it on your machine. Transcription happens inside the `asryx` process through the `whisper.cpp` library API.
 
@@ -163,28 +163,41 @@ git clone https://github.com/rccyx/asryx
 cd asryx && bash ./scripts/install
 ```
 
-Ensure these utilities are installed before running the script:
+This is just C++ and standard Linux, nothing exotic, so ensure these utilities are installed before running the installer (you probably have them already):
 
-Core Utilities:
+**Core Utilities:**
 
 - bash
 - git
 - curl
 - install
 
-Build Tools:
+**Build Tools:**
 
 - cmake
 - ninja
 - a C++ compiler (`g++` or `clang++`)
 
-Audio Capture:
+**Audio Capture:**
 
 - `pw-record` (PipeWire) or `arecord` (ALSA fallback)
 
-Clipboard & Alerts:
+To check what your audio backend:
+
+```
+which pw-record || which arecord
+```
+
+**Clipboard & Alerts:**
 
 - `wl-copy` (Wayland) or `xclip` (X11 fallback).
+
+To check which window manager you have:
+
+```
+echo $XDG_SESSION_TYPE
+```
+
 - `notify-send`
 
 > [!IMPORTANT]
@@ -199,7 +212,7 @@ It runs in this order.
 
 - validates your home directory
 - checks required tools
-- clones or updates the pinned `whisper.cpp` source into `~/.local/opt/whisper.cpp`
+- clones the pinned `whisper.cpp` source into `~/.local/opt/whisper.cpp`
 - builds the native binary locally against `whisper.cpp`
 - installs `asryx` into `~/.local/bin/asryx`
 - writes the installed `whisper.cpp` pin
