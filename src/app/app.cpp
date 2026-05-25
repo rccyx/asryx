@@ -17,6 +17,7 @@ void print_usage()
             << "Usage:\n"
             << "  asryx                           Toggle recording/transcription\n"
             << "  asryx status                    Print runtime state\n"
+            << "  asryx --language <code|auto>    Select transcription language\n"
             << "  asryx --model list              List available model sizes\n"
             << "  asryx --model install <name>    Install a model\n"
             << "  asryx --model use <name>        Select active model\n"
@@ -43,6 +44,11 @@ int run(const std::vector<std::string>& args)
         model::list_models();
         return 0;
       }
+    }
+
+    if (args.size() == 2 && args[0] == "--language") {
+      model::use_language(args[1]);
+      return 0;
     }
 
     if (args.size() == 3 && args[0] == "--model") {

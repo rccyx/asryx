@@ -117,7 +117,7 @@ The first press starts the recorder. PipeWire through `pw-record` is preferred, 
 
 The second press stops the recorder by signal, waits for the process to exit, decodes the WAV into memory as float samples, and runs local inference through `whisper.cpp`. The transcript is trimmed and pushed into the clipboard. If nothing was transcribed, it notifies and cleans up without touching the clipboard.
 
-Language: if the active model is English only (e.g. `base.en`), English is always used regardless of config. If the model is multilingual and `language` is set to `auto`, Whisper detects the spoken language automatically. Otherwise the configured language code is passed directly to the model.
+Language is validated before recording starts. `auto` keeps Whisper language detection enabled. A supported language code locks transcription to that language. English-only models (`tiny.en`, `base.en`, `small.en`, `medium.en`) only accept `auto` or `en`. Multilingual models accept `auto` and every supported language code.
 
 Clipboard output:
 
@@ -283,18 +283,19 @@ It refuses dangerous paths such as `/`, `$HOME`, empty paths, and non-absolute p
 
 ## CLI
 
-The surface area is tiny:
+The surface area:
 
 ```
 asryx
 asryx status
+asryx --language <auto|<CODE>>
 asryx --model list
 asryx --model install <MODEL>
 asryx --model use <MODEL>
 asryx --model uninstall <MODEL>
 ```
 
-## Models
+### Usage
 
 List models.
 
@@ -371,24 +372,139 @@ The active model config is stored in:
 ~/.asryx.conf
 ```
 
-## Config
-
 Switching models through the CLI updates this file.
 
 ```bash
 asryx --model use small.en
 ```
 
+Switching language through the CLI updates the same file and preserves the active model.
+
+```bash
+asryx --language es
+asryx --language auto
+```
+
 You can also edit it manually.
 
 ```bash
-model=small.en
-language=auto
+model=base
+language=de
 ```
 
 `model` sets the active Whisper model. `language` controls what language the model transcribes in.
 
-Set `language` to any Whisper supported language code (e.g. `fr`, `de`, `ar`, `zh`) or leave it as `auto` to let the model detect the spoken language automatically. Setting it explicitly is a bit faster, `auto` makes Whisper spend time figuring out the language before it can transcribe.
+`auto` keeps automatic language detection. A language code locks transcription to that language. Invalid language values fail before recording starts.
+
+English-only models (`tiny.en`, `base.en`, `small.en`, `medium.en`) only accept `auto` or `en`, multilingual models accept every supported code.
+
+<details>
+<summary>Supported language codes</summary>
+
+| Code | Language       |
+| ---- | -------------- |
+| en   | english        |
+| zh   | chinese        |
+| de   | german         |
+| es   | spanish        |
+| ru   | russian        |
+| ko   | korean         |
+| fr   | french         |
+| ja   | japanese       |
+| pt   | portuguese     |
+| tr   | turkish        |
+| pl   | polish         |
+| ca   | catalan        |
+| nl   | dutch          |
+| ar   | arabic         |
+| sv   | swedish        |
+| it   | italian        |
+| id   | indonesian     |
+| hi   | hindi          |
+| fi   | finnish        |
+| vi   | vietnamese     |
+| he   | hebrew         |
+| uk   | ukrainian      |
+| el   | greek          |
+| ms   | malay          |
+| cs   | czech          |
+| ro   | romanian       |
+| da   | danish         |
+| hu   | hungarian      |
+| ta   | tamil          |
+| no   | norwegian      |
+| th   | thai           |
+| ur   | urdu           |
+| hr   | croatian       |
+| bg   | bulgarian      |
+| lt   | lithuanian     |
+| la   | latin          |
+| mi   | maori          |
+| ml   | malayalam      |
+| cy   | welsh          |
+| sk   | slovak         |
+| te   | telugu         |
+| fa   | persian        |
+| lv   | latvian        |
+| bn   | bengali        |
+| sr   | serbian        |
+| az   | azerbaijani    |
+| sl   | slovenian      |
+| kn   | kannada        |
+| et   | estonian       |
+| mk   | macedonian     |
+| br   | breton         |
+| eu   | basque         |
+| is   | icelandic      |
+| hy   | armenian       |
+| ne   | nepali         |
+| mn   | mongolian      |
+| bs   | bosnian        |
+| kk   | kazakh         |
+| sq   | albanian       |
+| sw   | swahili        |
+| gl   | galician       |
+| mr   | marathi        |
+| pa   | punjabi        |
+| si   | sinhala        |
+| km   | khmer          |
+| sn   | shona          |
+| yo   | yoruba         |
+| so   | somali         |
+| af   | afrikaans      |
+| oc   | occitan        |
+| ka   | georgian       |
+| be   | belarusian     |
+| tg   | tajik          |
+| sd   | sindhi         |
+| gu   | gujarati       |
+| am   | amharic        |
+| yi   | yiddish        |
+| lo   | lao            |
+| uz   | uzbek          |
+| fo   | faroese        |
+| ht   | haitian creole |
+| ps   | pashto         |
+| tk   | turkmen        |
+| nn   | nynorsk        |
+| mt   | maltese        |
+| sa   | sanskrit       |
+| lb   | luxembourgish  |
+| my   | myanmar        |
+| bo   | tibetan        |
+| tl   | tagalog        |
+| mg   | malagasy       |
+| as   | assamese       |
+| tt   | tatar          |
+| haw  | hawaiian       |
+| ln   | lingala        |
+| ha   | hausa          |
+| ba   | bashkir        |
+| jw   | javanese       |
+| su   | sundanese      |
+| yue  | cantonese      |
+
+</details>
 
 ## Audio
 
