@@ -137,6 +137,35 @@ std::string trim(std::string value)
   return value.substr(start);
 }
 
+bool is_repeated_marker(const std::string& marker, const std::string& token)
+{
+  if (marker.empty() || token.empty() || marker.size() % token.size() != 0) {
+    return false;
+  }
+
+  for (size_t i = 0; i < marker.size(); i += token.size()) {
+    if (marker.compare(i, token.size(), token) != 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool is_no_speech_transcript(const std::string& value)
+{
+  std::string marker;
+
+  for (unsigned char ch : trim(value)) {
+    if (std::isalnum(ch) != 0) {
+      marker.push_back(static_cast<char>(std::tolower(ch)));
+    }
+  }
+
+  return marker == "blank" || marker == "blankaudio" || marker == "nospeech" ||
+         marker == "silence" || is_repeated_marker(marker, "blankaudio");
+}
+
 void write_state(const std::filesystem::path& runtime_dir, const std::string& state)
 {
   std::ofstream file(runtime_dir / std::string(constants::runtime::state_file));
@@ -208,7 +237,7 @@ void stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pid
   auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
   auto output = trim(engine::transcribe(model_path, wav_path.string(), language));
 
-  if (output.empty()) {
+  if (output.empty() || is_no_speech_transcript(output)) {
     engine::send_notification("no output");
     clean_stale_payload(runtime_dir);
     return;
