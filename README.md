@@ -39,7 +39,7 @@ asryx
 
 The next invocation stops capture, transcribes locally, copies the transcript, notifies the session, and cleans the runtime directory.
 
-A compositor double-fire, key repeat, or repeated invocation during an active phase cannot create parallel recorders or corrupt the current transcription.
+The runtime is guarded by an atomic lock directory and live PID checks, so compositor double-fires, key repeat, or repeated invocations collapse into safe no ops while one active phase owns the recorder or transcription. A second process cannot start a parallel recorder, interrupt an active decode, or corrupt the transcript path.
 
 **Runtime model:**
 
