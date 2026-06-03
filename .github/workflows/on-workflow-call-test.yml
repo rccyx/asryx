@@ -16,7 +16,26 @@ jobs:
       - name: base runner
         uses: ./.github/actions/base-runner
 
+      - name: cache install artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/whisper.cpp
+            ~/.local/share/asryx
+            ~/.cache/ccache
+          key: ${{ runner.os }}-install-${{ hashFiles('scripts/install') }}-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-install-${{ hashFiles('scripts/install') }}-${{ github.job }}-
+            ${{ runner.os }}-install-${{ hashFiles('scripts/install') }}-
+            ${{ runner.os }}-install-
+
       - name: install
+        env:
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
+          CCACHE_DIR: /home/runner/.cache/ccache
+          CCACHE_COMPRESS: "true"
+          CCACHE_MAXSIZE: 1G
         run: bash ./scripts/install
 
       - name: test
