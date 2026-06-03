@@ -154,11 +154,13 @@ bool is_repeated_marker(const std::string& marker, const std::string& token)
 
 bool is_no_speech_transcript(const std::string& value)
 {
+  const auto cleaned = trim(value);
   std::string marker;
 
-  for (unsigned char ch : trim(value)) {
-    if (std::isalnum(ch) != 0) {
-      marker.push_back(static_cast<char>(std::tolower(ch)));
+  for (char ch : cleaned) {
+    const auto byte = static_cast<unsigned char>(ch);
+    if (std::isalnum(byte) != 0) {
+      marker.push_back(static_cast<char>(std::tolower(byte)));
     }
   }
 
