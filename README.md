@@ -322,46 +322,33 @@ Example:
 
 ## Configuration
 
-Configuration is stored in:
+Configuration is stored in `~/.asryx.conf`.
 
-```text
-~/.asryx.conf
-```
+**Model**
 
-Default:
-
-```text
-model=base.en
-language=auto
-```
-
-`model` selects the active model. `language` controls transcription language. `auto` lets the model detect the language first before transcribing, which adds a little bit of unnecessary latency if you speak the same language all the time. Locking to a language code skips detection and transcribes instantly.
-
-English-only models (`tiny.en`, `base.en`, `small.en`, `medium.en`) accept:
-
-```text
-auto
-en
-```
-
-Multilingual models accept `auto` and every supported language code.
-
-Invalid model and language values are rejected before recording starts.
-
-Switching models through the CLI updates the config:
+`model` selects the active model. Switching via CLI updates the config instantly:
 
 ```bash
 asryx --model use small.en
 ```
 
-Switching language through the CLI updates the same config and preserves the active model:
+**Language**
+
+`language` controls transcription language. `auto` detects the language first, which adds a small amount of latency. Locking to a code skips detection entirely:
 
 ```bash
 asryx --language es
 asryx --language auto
 ```
 
-Manual edits are also valid:
+English only models (`tiny.en`, `base.en`, `small.en`, `medium.en`) only accept `en` or `auto`. Multilingual models accept any of the 99 supported language codes.
+
+> [!NOTE]
+> Language support and transcription quality are a property of the [GGML model weights](https://github.com/ggerganov/whisper.cpp/blob/d682e150908e10caa4c15883c633d7902d685237/src/whisper.cpp#L248).
+
+Invalid model and language values are rejected before recording starts.
+
+Manual edits to the config file are valid:
 
 ```text
 model=base
