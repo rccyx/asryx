@@ -206,6 +206,12 @@ echo "$XDG_SESSION_TYPE"
 
 Desktop notifications require an active notification daemon such as Mako, Dunst, or the session's native notification service.
 
+### Install all dependencies on Ubuntu
+
+```
+sudo aptitude install git curl cmake ninja-build wl-clipboard clang
+```
+
 ## Keybind
 
 The binary takes no arguments to toggle, so just bind it to a key in whatever compositor or DE you're on.
