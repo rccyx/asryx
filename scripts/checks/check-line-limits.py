@@ -11,6 +11,7 @@ LIMITS = {
 }
 
 violations: list[str] = []
+checked = 0
 
 for base in (ROOT / "src", ROOT / "tests"):
     if not base.exists():
@@ -20,6 +21,7 @@ for base in (ROOT / "src", ROOT / "tests"):
         if path.suffix not in LIMITS:
             continue
 
+        checked += 1
         lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
         limit = LIMITS[path.suffix]
         if len(lines) > limit:
@@ -32,3 +34,5 @@ if violations:
     for item in violations:
         print(f"  - {item}", file=sys.stderr)
     sys.exit(1)
+
+print(f"line limits ok ({checked} files checked)")

@@ -17,6 +17,7 @@ ALLOWED_FILES = {
 }
 
 violations: list[str] = []
+checked = 0
 
 for base in (ROOT / "src", ROOT / "tests"):
     if not base.exists():
@@ -27,6 +28,7 @@ for base in (ROOT / "src", ROOT / "tests"):
         if rel in ALLOWED_FILES:
             continue
 
+        checked += 1
         lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
         for no, line in enumerate(lines, start=1):
             if "safe_delete" in line:
@@ -39,3 +41,5 @@ if violations:
     for item in violations:
         print(f"  - {item}", file=sys.stderr)
     sys.exit(1)
+
+print(f"owned paths ok ({checked} files checked)")

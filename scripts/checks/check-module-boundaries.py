@@ -15,6 +15,7 @@ MODULES = {
 }
 
 violations: list[str] = []
+checked = 0
 
 if SRC.exists():
     for path in list(SRC.rglob("*.hpp")) + list(SRC.rglob("*.cpp")):
@@ -23,6 +24,7 @@ if SRC.exists():
         if owner not in MODULES:
             continue
 
+        checked += 1
         lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
         for no, line in enumerate(lines, start=1):
             match = INCLUDE.match(line)
@@ -38,3 +40,5 @@ if violations:
     for item in violations:
         print(f"  - {item}", file=sys.stderr)
     sys.exit(1)
+
+print(f"module boundaries ok ({checked} files checked)")

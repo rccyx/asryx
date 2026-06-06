@@ -8,10 +8,6 @@ release/
 .mypy_cache/
 compile_commands.json
 
-# local editor state
-.cursor/
-.vscode/
-.idea/
 *.swp
 *.swo
 

@@ -23,10 +23,10 @@ tidy_sources := "find src tests -type f \\( -name '*.cpp' -o -name '*.hpp' \\) -
 	ctest --preset release
 
 @lint:
-	cmake --fresh --preset release
 	python3 scripts/checks/check-line-limits.py
 	python3 scripts/checks/check-module-boundaries.py
 	python3 scripts/checks/check-owned-paths.py
+	cmake --fresh --preset release
 	{{tidy_sources}} | xargs -0 -r clang-tidy -p build/release
 	cppcheck --enable=all --error-exitcode=1 --inline-suppr --suppress=checkersReport --suppress=missingInclude --suppress=normalCheckLevelMaxBranches --suppressions-list=cppcheck.suppressions --std=c++20 -I src -I tests -I . src tests
 

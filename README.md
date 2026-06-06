@@ -2,13 +2,19 @@
 
 # asryx
 
-<br/>
-
 <p align="center">
-  <a href="https://github.com/rccyx/asryx/actions"><img src="https://img.shields.io/github/actions/workflow/status/rccyx/asryx/ci.yml?style=for-the-badge&color=black&labelColor=111111&logo=githubactions&logoColor=white" alt="CI Status"/></a>
-  <a href="#installation"><img src="https://img.shields.io/badge/Platform-Linux-black?style=for-the-badge&color=black&labelColor=111111&logo=linux&logoColor=white" alt="Platform: Linux"/></a>
-  <a href="#runtime-model"><img src="https://img.shields.io/badge/Offline-No_Cloud-black?style=for-the-badge&color=black&labelColor=111111" alt="Offline"/></a>
-  <a href="https://github.com/rccyx/asryx/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache-black?style=for-the-badge&color=black&labelColor=111111&logo=apache&logoColor=white" alt="License"/></a>
+  <a href="https://github.com/rccyx/asryx/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/rccyx/asryx/ci.yml?branch=main&style=for-the-badge&color=black&labelColor=111111&logo=githubactions&logoColor=white" alt="CI Status"/>
+  </a>
+  <a href="#installation">
+    <img src="https://img.shields.io/badge/Platform-Linux-black?logo=linux&logoColor=white&style=for-the-badge&labelColor=111111" alt="Platform: Linux"/>
+  </a>
+  <a href="#runtime-model">
+    <img src="https://img.shields.io/badge/Offline-100%25-black?logo=shield&logoColor=white&style=for-the-badge&labelColor=111111" alt="Offline"/>
+  </a>
+  <a href="https://github.com/rccyx/asryx/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-Apache--2.0-black?logo=apache&logoColor=white&style=for-the-badge&labelColor=111111" alt="License: Apache-2.0"/>
+  </a>
 </p>
 
 </div>
@@ -21,11 +27,35 @@
 
 ## Overview
 
-asryx is a native C++ ASR binary for Linux. It builds locally against a pinned `whisper.cpp` source tree, records audio through the active Linux audio stack, runs recognition in-process, writes the transcript to the active clipboard backend, emits desktop notifications, and removes runtime artifacts after completion. Easily installed, and more easily removed.
+This is a native C++ ASR binary toggle/CLI for Linux.
 
-Uses standard C++ and Linux dependencies, so it works with any Linux machine. Links against `whisper.cpp` as an embedded library through it's public C compatible API. There is no ASR server, hosted API, Python runtime, Node runtime, container layer, resident daemon, GUI process, dashboard, subscription, or network dependency during transcription.
+Links against `whisper.cpp` (built locally against a pinned source tree) as an embedded library through it's public C compatible API to supply the inference engine, while `asryx` owns the entire native Linux runtime around it.
 
-The program is basically a toggle, and a very simple [CLI](#cli).
+Which means it supports all [base whisper models](#models), [99 languages](#configuration), and runs entirely on CPU. So it works with any Linux machine, regardless of distro or GPU model.
+
+Records audio through the active Linux audio stack, runs recognition in process, writes the transcript to the active clipboard backend, emits desktop notifications, and removes runtime artifacts after completion.
+
+Easily [installed](#installation), and more easily [removed](#uninstallation).
+
+Doesn't stay in memory between uses. 0MB idle RAM. Doesn't load the model unless invoked.
+
+Boots instantly and exits instantly.
+
+One command to install. You compile the program on your own machine, no package manager or third parties.
+
+It uses standard C++ and Linux [dependencies](#dependencies).
+
+GGML models are downloaded [locally](#uninstallation).
+
+Transcription runs locally against those weights.
+
+[Reliable](#mechanism) is the word. Repeated invocations, key repeat, stale locks, interrupted sessions, and abandoned runtime artifacts are handled before a new recording begins.
+
+There is no ASR server, background daemon(s), hosted API, Python runtime, Node runtime, container layer, resident daemon, GUI process, dashboard, subscription, or network dependency during transcription.
+
+## Usage
+
+The program is a toggle
 
 ```bash
 asryx
@@ -33,13 +63,43 @@ asryx
 
 The first invocation starts capture.
 
+You talk for as long as you want.
+
 ```bash
 asryx
 ```
 
 The next invocation stops capture, transcribes locally, copies the transcript, notifies the session, and cleans the runtime directory.
 
-The runtime is guarded by an atomic lock directory and live PID checks, so compositor double-fires, key repeat, or repeated invocations collapse into safe no ops while one active phase owns the recorder or transcription. A second process cannot start a parallel recorder, interrupt an active decode, or corrupt the transcript path.
+> [!TIP]
+> This toggle can be hooked to Sway, Hyprland, i3, GNOME, etc.
+
+And a very simple [CLI](#cli)
+
+```
+asryx                           # Toggle record/transcribe
+asryx status                    # Check idle/recording/transcribing
+asryx --language <auto|CODE>    # Set language
+asryx --model list              # List supported models
+asryx --model install <MODEL>   # Download model
+asryx --model use <MODEL>       # Switch model
+```
+
+## Mechanism
+
+Audio capture orchestration, runtime state, model management, clipboard delivery, notification dispatch, cleanup, and failure recovery are all owned by the binary.
+
+The audio path is native code. Captured audio is validated as RIFF/WAVE, walked chunk by chunk, checked for 16 kHz mono signed 16-bit PCM, and decoded from PCM16 into float samples before inference.
+
+Dependency free as in, not even a WAV library sits between the recorder output and the model input.
+
+Dependencies are ones you already have, only needed to compile the program, pipe audio to your audio server, and emit notifications, that's it.
+
+The recorder is launched as a native Linux process, tracked through its PID, stopped by signal, and verified to have exited before transcription begins.
+
+An atomic lock directory guards the runtime. Directory creation is the mutex primitive, and ownership is tracked through live PIDs.
+
+Stale sessions are recovered automatically, and repeated invocations coalesce into a single active operation, so key repeats, compositor double fires, interrupted sessions, and abandoned runtime artifacts resolve safely before a new recording begins.
 
 **Runtime model:**
 
@@ -55,7 +115,10 @@ press again
   -> acquire lock
   -> stop recorder
   -> mark state as transcribing
-  -> decode wav into memory
+  -> parse RIFF/WAVE
+  -> validate format chunk
+  -> locate data chunk
+  -> decode PCM16 into float samples
   -> run whisper.cpp inference in-process
   -> trim transcript
   -> write transcript to clipboard
@@ -83,8 +146,6 @@ mono
 16 kHz
 signed 16-bit
 ```
-
-The second invocation stops the recorder by signal, waits for the recorder process to exit, decodes the WAV into memory as float samples, runs local inference, trims the result, and writes it to the clipboard.
 
 Clipboard backends:
 
@@ -198,7 +259,7 @@ which pw-record || which arecord
 
 PipeWire systems have `pw-record`, ALSA systems have `arecord`. If you have neither, install `pipewire` or `alsa-utils` through your package manager.
 
-For clipboard, it depends on your session. Hyprland, Sway, and any other Wayland compositor need `wl-clipboard`. X11 needs `xclip`. If you're not sure which you are on:
+For clipboard, it depends on your session. Hyprland, Sway, and any other Wayland compositor need `wl-clipboard`. X11 needs `xclip`. If you're not sure which you're on:
 
 ```bash
 echo "$XDG_SESSION_TYPE"
@@ -208,7 +269,7 @@ Desktop notifications require an active notification daemon such as Mako, Dunst,
 
 ## Keybind
 
-The binary takes no arguments to toggle, so just bind it to a key in whatever compositor or DE you're on.
+The binary takes no arguments to toggle, so bind it to a key in the active compositor or desktop environment.
 
 Hyprland:
 
@@ -222,9 +283,19 @@ Sway / i3:
 bindsym $mod+w exec asryx
 ```
 
-GNOME: Settings > Keyboard > Custom Shortcuts, set command to `asryx`.
+GNOME:
 
-KDE Plasma: System Settings > Shortcuts > Custom Shortcuts, set command to `asryx`.
+```text
+Settings > Keyboard > Custom Shortcuts
+command: asryx
+```
+
+KDE Plasma:
+
+```text
+System Settings > Shortcuts > Custom Shortcuts
+command: asryx
+```
 
 > [!TIP]
 > A clipboard manager is highly recommended for long recordings. In case you copy something else by mistake after the transcription is emitted.
@@ -322,46 +393,33 @@ Example:
 
 ## Configuration
 
-Configuration is stored in:
+Configuration is stored in `~/.asryx.conf`.
 
-```text
-~/.asryx.conf
-```
+**Model**
 
-Default:
-
-```text
-model=base.en
-language=auto
-```
-
-`model` selects the active model. `language` controls transcription language. `auto` lets the model detect the language first before transcribing, which adds a little bit of unnecessary latency if you speak the same language all the time. Locking to a language code skips detection and transcribes instantly.
-
-English-only models (`tiny.en`, `base.en`, `small.en`, `medium.en`) accept:
-
-```text
-auto
-en
-```
-
-Multilingual models accept `auto` and every supported language code.
-
-Invalid model and language values are rejected before recording starts.
-
-Switching models through the CLI updates the config:
+`model` selects the active model. Switching via CLI updates the config instantly:
 
 ```bash
 asryx --model use small.en
 ```
 
-Switching language through the CLI updates the same config and preserves the active model:
+**Language**
+
+`language` controls transcription language. `auto` detects the language first, which adds a small amount of latency. Locking to a code skips detection entirely.
 
 ```bash
 asryx --language es
 asryx --language auto
 ```
 
-Manual edits are also valid:
+English only models (`tiny.en`, `base.en`, `small.en`, `medium.en`) only accept `en` or `auto`. Multilingual models accept any of the 99 supported language codes.
+
+> [!NOTE]
+> Language support and transcription quality are a property of the [GGML model weights](https://github.com/ggerganov/whisper.cpp/blob/d682e150908e10caa4c15883c633d7902d685237/src/whisper.cpp#L248).
+
+Invalid model and language values are rejected before recording starts.
+
+Manual edits to the config file are also valid:
 
 ```text
 model=base
@@ -496,6 +554,9 @@ Removed paths:
 ~/.asryx.conf
 $XDG_RUNTIME_DIR/asryx
 ```
+
+> [!NOTE]
+> Deletion goes through owned [path validation](/src/platform/fs.cpp) before files or directories are even removed.
 
 ## License
 
