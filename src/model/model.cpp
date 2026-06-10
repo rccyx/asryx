@@ -28,6 +28,11 @@ std::filesystem::path _model_dir()
   return platform::get_home_relative_path(std::string(constants::paths::data_dir_rel));
 }
 
+std::filesystem::path _vad_model_path()
+{
+  return _model_dir() / std::string(constants::paths::VAD_MODEL_FILE);
+}
+
 std::filesystem::path _whisper_source_dir()
 {
   return platform::get_home_relative_path(std::string(constants::paths::whisper_checkout_rel));
@@ -125,9 +130,19 @@ std::string get_model_path(const std::string& name)
   return (_model_dir() / ("ggml-" + name + ".bin")).string();
 }
 
+std::string get_vad_model_path()
+{
+  return _vad_model_path().string();
+}
+
 bool is_model_installed(const std::string& name)
 {
   return _file_exists_nonempty(get_model_path(name));
+}
+
+bool is_vad_model_installed()
+{
+  return _file_exists_nonempty(_vad_model_path());
 }
 
 bool is_supported_language(const std::string& language)
@@ -164,6 +179,14 @@ void validate_config(const config::Config& cfg)
   }
 }
 
+void validate_vad_model()
+{
+  const auto path = _vad_model_path();
+  if (!_file_exists_nonempty(path)) {
+    throw std::runtime_error("VAD model is not installed: " + path.string());
+  }
+}
+
 std::string transcription_language_for(const config::Config& cfg)
 {
   validate_config(cfg);
@@ -191,6 +214,10 @@ void list_models()
     std::cout << "  " << (active ? "* " : "  ") << model_name << (installed ? " (installed)" : "")
               << (active ? " (active)" : "") << "\n";
   }
+
+  std::cout << "\nVAD model:\n";
+  std::cout << "  " << constants::paths::VAD_MODEL_FILE
+            << (is_vad_model_installed() ? " (installed)" : " (missing)") << "\n";
 }
 
 void install_model(const std::string& name)

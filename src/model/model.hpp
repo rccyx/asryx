@@ -13,10 +13,13 @@ namespace model {
 const std::vector<std::string>& get_supported_models();
 const std::vector<std::string>& get_supported_languages();
 std::string get_model_path(const std::string& name);
+std::string get_vad_model_path();
 bool is_model_installed(const std::string& name);
+bool is_vad_model_installed();
 bool is_supported_language(const std::string& language);
 bool is_english_only_model(const std::string& name);
 void validate_config(const config::Config& cfg);
+void validate_vad_model();
 std::string transcription_language_for(const config::Config& cfg);
 void list_models();
 void install_model(const std::string& name);
