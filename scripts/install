@@ -90,7 +90,8 @@ write_default_config_if_missing() {
 }
 
 install_vad_model() {
-  local target="$(_asryx_home_path "${ASRYX_SHARE_DIR_REL}")/${ASRYX_VAD_MODEL_FILE}"
+  local target
+  target="$(_asryx_home_path "${ASRYX_SHARE_DIR_REL}")/${ASRYX_VAD_MODEL_FILE}"
   local tmp="${target}.tmp.$$"
 
   if [[ -s "${target}" ]]; then
@@ -109,6 +110,7 @@ install_vad_model() {
   [[ -s "${tmp}" ]] || _asryx_die "downloaded VAD model is empty"
   mv -f "${tmp}" "${target}"
 }
+
 
 install_and_select_model() {
   local asryx_bin
