@@ -3,6 +3,9 @@
 # shellcheck disable=SC2034
 ASRYX_DEFAULT_MODEL="base.en"
 ASRYX_DEFAULT_LANGUAGE="auto"
+ASRYX_VAD_MODEL_NAME="silero-v6.2.0"
+ASRYX_VAD_MODEL_FILE="ggml-${ASRYX_VAD_MODEL_NAME}.bin"
+ASRYX_VAD_MODEL_URL="https://huggingface.co/ggml-org/whisper-vad/resolve/main/${ASRYX_VAD_MODEL_FILE}"
 ASRYX_CONFIG_FILE=".asryx.conf"
 ASRYX_LOCAL_BIN_DIR_REL=".local/bin"
 ASRYX_LOCAL_OPT_DIR_REL=".local/opt"

@@ -89,6 +89,27 @@ write_default_config_if_missing() {
   printf 'model=%s\nlanguage=%s\npipe_to=\n' "${model_name}" "${ASRYX_DEFAULT_LANGUAGE}" >"${cfg}"
 }
 
+install_vad_model() {
+  local target="$(_asryx_home_path "${ASRYX_SHARE_DIR_REL}")/${ASRYX_VAD_MODEL_FILE}"
+  local tmp="${target}.tmp.$$"
+
+  if [[ -s "${target}" ]]; then
+    _asryx_log "VAD model already installed: ${target}"
+    return 0
+  fi
+
+  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_SHARE_DIR_REL}")"
+  _asryx_log "downloading VAD model ${ASRYX_VAD_MODEL_NAME}"
+
+  if ! curl -fL --retry 3 -o "${tmp}" "${ASRYX_VAD_MODEL_URL}"; then
+    rm -f -- "${tmp}"
+    _asryx_die "failed to download VAD model"
+  fi
+
+  [[ -s "${tmp}" ]] || _asryx_die "downloaded VAD model is empty"
+  mv -f "${tmp}" "${target}"
+}
+
 install_and_select_model() {
   local asryx_bin
   asryx_bin="$(_asryx_home_path "${ASRYX_ASRYX_BIN_REL}")"
@@ -123,6 +144,7 @@ main() {
   install_asryx_binary
   write_installed_whisper_pin "${whisper_sha}"
   write_default_config_if_missing
+  install_vad_model
   install_and_select_model
   warn_path_if_needed
 }
