@@ -11,9 +11,9 @@ namespace platform {
 
 namespace {
 
-std::filesystem::path require_home_path()
+std::filesystem::path _require_home_path()
 {
-  const char* home = std::getenv("HOME");
+  const char* const home = std::getenv("HOME");
   if (!home || *home == '\0') {
     throw std::runtime_error("HOME environment variable not set");
   }
@@ -25,15 +25,16 @@ std::filesystem::path require_home_path()
 
 std::filesystem::path get_home_relative_path(const std::string& rel_path)
 {
-  return require_home_path() / rel_path;
+  return _require_home_path() / rel_path;
 }
 
 std::filesystem::path get_runtime_directory()
 {
-  const char* xdg = std::getenv("XDG_RUNTIME_DIR");
-  if (xdg && *xdg != '\0') {
-    return std::filesystem::path(xdg) / std::string(constants::runtime::dir_name);
+  const char* const runtime_root = std::getenv("XDG_RUNTIME_DIR");
+  if (runtime_root && *runtime_root != '\0') {
+    return std::filesystem::path(runtime_root) / std::string(constants::runtime::dir_name);
   }
+
   return std::filesystem::path(constants::runtime::fallback_tmp_root) /
          (std::string(constants::runtime::dir_name) + "-" + std::to_string(getuid()));
 }
@@ -44,7 +45,7 @@ bool is_owned_path(const std::filesystem::path& path)
   std::filesystem::path home_path;
 
   try {
-    home_path = std::filesystem::weakly_canonical(require_home_path());
+    home_path = std::filesystem::weakly_canonical(_require_home_path());
   }
   catch (const std::runtime_error&) {
     return false;
@@ -54,12 +55,13 @@ bool is_owned_path(const std::filesystem::path& path)
   allowed.push_back(get_runtime_directory());
 
   for (const auto& prefix : allowed) {
-    std::filesystem::path canonical_prefix = std::filesystem::weakly_canonical(prefix);
-    auto rel = canonical_path.lexically_relative(canonical_prefix);
-    if (!rel.empty() && rel.string().find("..") == std::string::npos) {
+    const std::filesystem::path canonical_prefix = std::filesystem::weakly_canonical(prefix);
+    const auto relative_path = canonical_path.lexically_relative(canonical_prefix);
+    if (!relative_path.empty() && relative_path.string().find("..") == std::string::npos) {
       return true;
     }
   }
+
   return false;
 }
 

@@ -12,11 +12,11 @@ namespace config {
 
 Config load_config()
 {
-  Config cfg;
-  auto path = platform::get_home_relative_path(std::string(constants::config::file_name));
+  Config config;
+  const auto path = platform::get_home_relative_path(std::string(constants::config::file_name));
   std::ifstream file(path);
   if (!file.is_open()) {
-    return cfg;
+    return config;
   }
 
   std::string line;
@@ -25,47 +25,47 @@ Config load_config()
       continue;
     }
 
-    auto pos = line.find('=');
+    const auto pos = line.find('=');
     if (pos == std::string::npos) {
       continue;
     }
 
-    std::string key = line.substr(0, pos);
-    std::string val = line.substr(pos + 1);
+    const std::string key = line.substr(0, pos);
+    const std::string value = line.substr(pos + 1);
 
     if (key == constants::config::model_key) {
-      cfg.model = val;
+      config.model = value;
     }
     else if (key == constants::config::language_key) {
-      cfg.language = val;
+      config.language = value;
     }
     else if (key == constants::config::pipe_to_key) {
-      cfg.pipe_to = val;
+      config.pipe_to = value;
     }
   }
 
-  return cfg;
+  return config;
 }
 
-void save_config(const Config& cfg)
+void save_config(const Config& config)
 {
-  auto path = platform::get_home_relative_path(std::string(constants::config::file_name));
-  auto tmp_path = platform::get_home_relative_path(std::string(constants::config::file_name) +
-                                                   std::string(constants::config::temp_suffix));
+  const auto path = platform::get_home_relative_path(std::string(constants::config::file_name));
+  const auto temp_path = platform::get_home_relative_path(
+      std::string(constants::config::file_name) + std::string(constants::config::temp_suffix));
 
   {
-    std::ofstream file(tmp_path);
+    std::ofstream file(temp_path);
     if (!file.is_open()) {
       throw std::runtime_error("Failed to open temporary config file for writing: " +
-                               tmp_path.string());
+                               temp_path.string());
     }
 
-    file << constants::config::model_key << "=" << cfg.model << "\n";
-    file << constants::config::language_key << "=" << cfg.language << "\n";
-    file << constants::config::pipe_to_key << "=" << cfg.pipe_to << "\n";
+    file << constants::config::model_key << "=" << config.model << "\n";
+    file << constants::config::language_key << "=" << config.language << "\n";
+    file << constants::config::pipe_to_key << "=" << config.pipe_to << "\n";
   }
 
-  std::filesystem::rename(tmp_path, path);
+  std::filesystem::rename(temp_path, path);
 }
 
 } // namespace config

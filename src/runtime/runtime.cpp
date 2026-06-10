@@ -23,28 +23,28 @@ namespace runtime {
 namespace {
 
 #ifdef ASRYX_TESTING
-int& toggle_entries()
+int& _toggle_entries()
 {
   static int entries = 0;
   return entries;
 }
 #endif
 
-std::filesystem::path lock_dir_for(const std::filesystem::path& runtime_dir)
+std::filesystem::path _lock_dir_for(const std::filesystem::path& runtime_dir)
 {
   return runtime_dir / std::string(constants::runtime::lock_dir_name);
 }
 
-bool read_pid_file(const std::filesystem::path& path, pid_t& pid)
+bool _read_pid_file(const std::filesystem::path& path, pid_t& pid)
 {
   std::ifstream file(path);
   return static_cast<bool>(file >> pid);
 }
 
-bool acquire_lock(const std::filesystem::path& runtime_dir)
+bool _acquire_lock(const std::filesystem::path& runtime_dir)
 {
   std::filesystem::create_directories(runtime_dir);
-  auto lock_dir = lock_dir_for(runtime_dir);
+  const auto lock_dir = _lock_dir_for(runtime_dir);
 
   std::error_code ec;
   if (std::filesystem::create_directory(lock_dir, ec)) {
@@ -53,7 +53,7 @@ bool acquire_lock(const std::filesystem::path& runtime_dir)
   }
 
   pid_t pid = 0;
-  if (!read_pid_file(lock_dir / std::string(constants::runtime::pid_file_name), pid) ||
+  if (!_read_pid_file(lock_dir / std::string(constants::runtime::pid_file_name), pid) ||
       !platform::is_process_running(pid))
   {
     platform::safe_delete_directory(lock_dir);
@@ -66,12 +66,12 @@ bool acquire_lock(const std::filesystem::path& runtime_dir)
   return false;
 }
 
-void release_lock(const std::filesystem::path& runtime_dir)
+void _release_lock(const std::filesystem::path& runtime_dir)
 {
-  platform::safe_delete_directory(lock_dir_for(runtime_dir));
+  platform::safe_delete_directory(_lock_dir_for(runtime_dir));
 }
 
-void clean_stale_payload(const std::filesystem::path& runtime_dir)
+void _clean_stale_payload(const std::filesystem::path& runtime_dir)
 {
   platform::safe_delete_file(runtime_dir / std::string(constants::runtime::recorder_pid_file));
   platform::safe_delete_file(runtime_dir / std::string(constants::runtime::recorder_wav_file));
@@ -79,7 +79,7 @@ void clean_stale_payload(const std::filesystem::path& runtime_dir)
   platform::safe_delete_file(runtime_dir / std::string(constants::runtime::state_file));
 }
 
-std::string read_text_file(const std::filesystem::path& path)
+std::string _read_text_file(const std::filesystem::path& path)
 {
   if (!std::filesystem::exists(path)) {
     return "";
@@ -101,9 +101,9 @@ std::string read_text_file(const std::filesystem::path& path)
   return output;
 }
 
-std::string read_state_file(const std::filesystem::path& runtime_dir)
+std::string _read_state_file(const std::filesystem::path& runtime_dir)
 {
-  auto state_file = runtime_dir / std::string(constants::runtime::state_file);
+  const auto state_file = runtime_dir / std::string(constants::runtime::state_file);
   if (!std::filesystem::exists(state_file)) {
     return "";
   }
@@ -117,21 +117,21 @@ std::string read_state_file(const std::filesystem::path& runtime_dir)
   return "";
 }
 
-bool has_live_lock(const std::filesystem::path& runtime_dir)
+bool _has_live_lock(const std::filesystem::path& runtime_dir)
 {
   pid_t pid = 0;
-  return read_pid_file(lock_dir_for(runtime_dir) / std::string(constants::runtime::pid_file_name),
-                       pid) &&
+  return _read_pid_file(_lock_dir_for(runtime_dir) / std::string(constants::runtime::pid_file_name),
+                        pid) &&
          platform::is_process_running(pid);
 }
 
-bool has_live_recorder(const std::filesystem::path& runtime_dir, pid_t& pid)
+bool _has_live_recorder(const std::filesystem::path& runtime_dir, pid_t& pid)
 {
-  return read_pid_file(runtime_dir / std::string(constants::runtime::recorder_pid_file), pid) &&
+  return _read_pid_file(runtime_dir / std::string(constants::runtime::recorder_pid_file), pid) &&
          platform::is_process_running(pid);
 }
 
-std::string trim(std::string value)
+std::string _trim(std::string value)
 {
   while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back())) != 0) {
     value.pop_back();
@@ -145,134 +145,134 @@ std::string trim(std::string value)
   return value.substr(start);
 }
 
-void write_state(const std::filesystem::path& runtime_dir, const std::string& state)
+void _write_state(const std::filesystem::path& runtime_dir, const std::string& state)
 {
   std::ofstream file(runtime_dir / std::string(constants::runtime::state_file));
   file << state << "\n";
 }
 
-std::string recorder_error_text(const std::filesystem::path& runtime_dir)
+std::string _recorder_error_text(const std::filesystem::path& runtime_dir)
 {
-  return trim(read_text_file(runtime_dir / std::string(constants::runtime::recorder_error_file)));
+  return _trim(_read_text_file(runtime_dir / std::string(constants::runtime::recorder_error_file)));
 }
 
-void print_recorder_error(const std::filesystem::path& runtime_dir)
+void _print_recorder_error(const std::filesystem::path& runtime_dir)
 {
-  const auto error = recorder_error_text(runtime_dir);
+  const auto error = _recorder_error_text(runtime_dir);
   if (!error.empty()) {
     std::cerr << error << "\n";
   }
 }
 
-std::filesystem::path runtime_log_path(const std::filesystem::path& runtime_dir)
+std::filesystem::path _runtime_log_path(const std::filesystem::path& runtime_dir)
 {
   return runtime_dir / std::string(constants::runtime::error_log_file);
 }
 
-std::filesystem::path write_runtime_log(const std::filesystem::path& runtime_dir,
-                                        const std::string& content)
+std::filesystem::path _write_runtime_log(const std::filesystem::path& runtime_dir,
+                                         const std::string& content)
 {
   std::filesystem::create_directories(runtime_dir);
-  const auto path = runtime_log_path(runtime_dir);
+  const auto path = _runtime_log_path(runtime_dir);
   std::ofstream file(path);
   file << content;
   return path;
 }
 
-void start_recording(const std::filesystem::path& runtime_dir)
+void _start_recording(const std::filesystem::path& runtime_dir)
 {
-  clean_stale_payload(runtime_dir);
+  _clean_stale_payload(runtime_dir);
 
-  auto cfg = config::load_config();
-  model::validate_config(cfg);
-  if (!model::is_model_installed(cfg.model)) {
-    throw std::runtime_error("model '" + cfg.model +
+  const auto config = config::load_config();
+  model::validate_config(config);
+  if (!model::is_model_installed(config.model)) {
+    throw std::runtime_error("model '" + config.model +
                              "' is not installed. Install it with: asryx --model install " +
-                             cfg.model);
+                             config.model);
   }
 
-  auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
-  auto err_path = runtime_dir / std::string(constants::runtime::recorder_error_file);
-  pid_t pid = engine::start_recording(wav_path.string(), err_path.string());
+  const auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
+  const auto err_path = runtime_dir / std::string(constants::runtime::recorder_error_file);
+  const pid_t pid = engine::start_recording(wav_path.string(), err_path.string());
   if (!platform::is_process_running(pid)) {
     throw std::runtime_error("recorder process exited before startup completed");
   }
 
   std::ofstream(runtime_dir / std::string(constants::runtime::recorder_pid_file)) << pid << "\n";
-  write_state(runtime_dir, std::string(constants::runtime::recording_state));
+  _write_state(runtime_dir, std::string(constants::runtime::recording_state));
   engine::send_notification("recording…");
 }
 
-void route_transcription(const std::filesystem::path& runtime_dir, const config::Config& cfg,
-                         const std::string& output)
+void _route_transcription(const std::filesystem::path& runtime_dir, const config::Config& cfg,
+                          const std::string& output)
 {
   if (!engine::copy_to_clipboard(output)) {
     const auto log_path =
-        write_runtime_log(runtime_dir, "clipboard copy failed; transcript was not copied.\n");
+        _write_runtime_log(runtime_dir, "clipboard copy failed; transcript was not copied.\n");
     std::cerr << "clipboard failed; see log: " << log_path << "\n";
     engine::send_notification("clipboard failed; see log");
-    clean_stale_payload(runtime_dir);
+    _clean_stale_payload(runtime_dir);
     return;
   }
 
   if (cfg.pipe_to.empty()) {
     engine::send_notification(std::string(constants::notifications::transcription_copied));
-    clean_stale_payload(runtime_dir);
+    _clean_stale_payload(runtime_dir);
     return;
   }
 
   if (!platform::run_process_with_stdin({"sh", "-c", cfg.pipe_to}, output)) {
-    const auto log_path =
-        write_runtime_log(runtime_dir, "pipe target failed; transcript was copied to clipboard.\n");
+    const auto log_path = _write_runtime_log(
+        runtime_dir, "pipe target failed; transcript was copied to clipboard.\n");
     std::cerr << "pipe target failed; transcript remains in clipboard; see log: " << log_path
               << "\n";
     engine::send_notification(std::string(constants::notifications::pipe_failed));
-    clean_stale_payload(runtime_dir);
+    _clean_stale_payload(runtime_dir);
     return;
   }
 
   engine::send_notification(std::string(constants::notifications::pipe_copied));
-  clean_stale_payload(runtime_dir);
+  _clean_stale_payload(runtime_dir);
 }
 
-void stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pid)
+void _stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pid)
 {
   if (!engine::stop_recording(rec_pid)) {
-    print_recorder_error(runtime_dir);
+    _print_recorder_error(runtime_dir);
     engine::send_notification("recorder did not stop");
     return;
   }
 
-  write_state(runtime_dir, std::string(constants::runtime::transcribing_state));
+  _write_state(runtime_dir, std::string(constants::runtime::transcribing_state));
 
-  auto cfg = config::load_config();
-  const auto language = model::transcription_language_for(cfg);
-  auto model_path = model::get_model_path(cfg.model);
-  auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
-  auto output = trim(engine::transcribe(model_path, wav_path.string(), language));
+  const auto config = config::load_config();
+  const auto language = model::transcription_language_for(config);
+  const auto model_path = model::get_model_path(config.model);
+  const auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
+  const auto output = _trim(engine::transcribe(model_path, wav_path.string(), language));
 
   if (output.empty()) {
     engine::send_notification("no output");
-    clean_stale_payload(runtime_dir);
+    _clean_stale_payload(runtime_dir);
     return;
   }
 
-  route_transcription(runtime_dir, cfg, output);
+  _route_transcription(runtime_dir, config, output);
 }
 
 } // namespace
 
 std::string get_status()
 {
-  auto runtime_dir = platform::get_runtime_directory();
-  auto state = read_state_file(runtime_dir);
+  const auto runtime_dir = platform::get_runtime_directory();
+  const auto state = _read_state_file(runtime_dir);
 
   pid_t rec_pid = 0;
-  if (has_live_recorder(runtime_dir, rec_pid)) {
+  if (_has_live_recorder(runtime_dir, rec_pid)) {
     return std::string(constants::runtime::recording_state);
   }
 
-  if (state == constants::runtime::transcribing_state && has_live_lock(runtime_dir)) {
+  if (state == constants::runtime::transcribing_state && _has_live_lock(runtime_dir)) {
     return std::string(constants::runtime::transcribing_state);
   }
 
@@ -282,28 +282,28 @@ std::string get_status()
 void toggle()
 {
 #ifdef ASRYX_TESTING
-  ++toggle_entries();
+  ++_toggle_entries();
 #endif
 
-  auto runtime_dir = platform::get_runtime_directory();
-  if (!acquire_lock(runtime_dir)) {
+  const auto runtime_dir = platform::get_runtime_directory();
+  if (!_acquire_lock(runtime_dir)) {
     return;
   }
 
   try {
     pid_t rec_pid = 0;
-    if (has_live_recorder(runtime_dir, rec_pid)) {
-      stop_and_transcribe(runtime_dir, rec_pid);
+    if (_has_live_recorder(runtime_dir, rec_pid)) {
+      _stop_and_transcribe(runtime_dir, rec_pid);
     }
     else {
-      start_recording(runtime_dir);
+      _start_recording(runtime_dir);
     }
 
-    release_lock(runtime_dir);
+    _release_lock(runtime_dir);
   }
   catch (const std::exception& e) {
     std::cerr << "error: " << e.what() << "\n";
-    const auto recorder_error = recorder_error_text(runtime_dir);
+    const auto recorder_error = _recorder_error_text(runtime_dir);
     if (!recorder_error.empty()) {
       std::cerr << recorder_error << "\n";
     }
@@ -314,11 +314,11 @@ void toggle()
       log << recorder_error << "\n";
     }
 
-    const auto log_path = write_runtime_log(runtime_dir, log.str());
+    const auto log_path = _write_runtime_log(runtime_dir, log.str());
     std::cerr << "see log: " << log_path << "\n";
     engine::send_notification("asryx failed; see log");
-    clean_stale_payload(runtime_dir);
-    release_lock(runtime_dir);
+    _clean_stale_payload(runtime_dir);
+    _release_lock(runtime_dir);
     std::exit(1);
   }
 }
@@ -328,12 +328,12 @@ namespace testing {
 
 void reset_toggle_entry_count()
 {
-  toggle_entries() = 0;
+  _toggle_entries() = 0;
 }
 
 int toggle_entry_count()
 {
-  return toggle_entries();
+  return _toggle_entries();
 }
 
 } // namespace testing

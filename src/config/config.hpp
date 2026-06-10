@@ -15,7 +15,7 @@ struct Config
 };
 
 Config load_config();
-void save_config(const Config& cfg);
+void save_config(const Config& config);
 
 } // namespace config
 

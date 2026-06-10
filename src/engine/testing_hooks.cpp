@@ -15,7 +15,7 @@ struct Hooks
   NotificationHook notification = nullptr;
 };
 
-Hooks& hooks()
+Hooks& _hooks()
 {
   static Hooks value;
   return value;
@@ -25,57 +25,57 @@ Hooks& hooks()
 
 void set_start_recording_hook(StartRecordingHook hook)
 {
-  hooks().start_recording = hook;
+  _hooks().start_recording = hook;
 }
 
 void set_stop_recording_hook(StopRecordingHook hook)
 {
-  hooks().stop_recording = hook;
+  _hooks().stop_recording = hook;
 }
 
 void set_transcribe_hook(TranscribeHook hook)
 {
-  hooks().transcribe = hook;
+  _hooks().transcribe = hook;
 }
 
 void set_copy_to_clipboard_hook(CopyToClipboardHook hook)
 {
-  hooks().copy_to_clipboard = hook;
+  _hooks().copy_to_clipboard = hook;
 }
 
 void set_notification_hook(NotificationHook hook)
 {
-  hooks().notification = hook;
+  _hooks().notification = hook;
 }
 
 void reset_hooks()
 {
-  hooks() = Hooks{};
+  _hooks() = Hooks{};
 }
 
 StartRecordingHook start_recording_hook()
 {
-  return hooks().start_recording;
+  return _hooks().start_recording;
 }
 
 StopRecordingHook stop_recording_hook()
 {
-  return hooks().stop_recording;
+  return _hooks().stop_recording;
 }
 
 TranscribeHook transcribe_hook()
 {
-  return hooks().transcribe;
+  return _hooks().transcribe;
 }
 
 CopyToClipboardHook copy_to_clipboard_hook()
 {
-  return hooks().copy_to_clipboard;
+  return _hooks().copy_to_clipboard;
 }
 
 NotificationHook notification_hook()
 {
-  return hooks().notification;
+  return _hooks().notification;
 }
 
 } // namespace engine::testing

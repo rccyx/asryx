@@ -16,41 +16,43 @@ namespace model {
 
 namespace {
 
-bool is_supported_model_name(const std::string& name)
+bool _is_supported_model_name(const std::string& name)
 {
-  const auto& supported = get_supported_models();
-  return std::find(supported.begin(), supported.end(), name) != supported.end();
+  const auto& supported_models = get_supported_models();
+  return std::find(supported_models.begin(), supported_models.end(), name) !=
+         supported_models.end();
 }
 
-std::filesystem::path model_dir()
+std::filesystem::path _model_dir()
 {
   return platform::get_home_relative_path(std::string(constants::paths::data_dir_rel));
 }
 
-std::filesystem::path whisper_source_dir()
+std::filesystem::path _whisper_source_dir()
 {
   return platform::get_home_relative_path(std::string(constants::paths::whisper_checkout_rel));
 }
 
-std::filesystem::path whisper_model_path(const std::string& name)
+std::filesystem::path _whisper_model_path(const std::string& name)
 {
-  return whisper_source_dir() / "models" / ("ggml-" + name + ".bin");
+  return _whisper_source_dir() / "models" / ("ggml-" + name + ".bin");
 }
 
-std::filesystem::path whisper_model_downloader()
+std::filesystem::path _whisper_model_downloader()
 {
-  return whisper_source_dir() / "models/download-ggml-model.sh";
+  return _whisper_source_dir() / "models/download-ggml-model.sh";
 }
 
-bool file_exists_nonempty(const std::filesystem::path& path)
+bool _file_exists_nonempty(const std::filesystem::path& path)
 {
   return std::filesystem::exists(path) && std::filesystem::is_regular_file(path) &&
          !std::filesystem::is_empty(path);
 }
 
-void copy_model_into_store(const std::filesystem::path& source, const std::filesystem::path& target)
+void _copy_model_into_store(const std::filesystem::path& source,
+                            const std::filesystem::path& target)
 {
-  if (!file_exists_nonempty(source)) {
+  if (!_file_exists_nonempty(source)) {
     throw std::runtime_error("download did not produce model: " + source.string());
   }
 
@@ -70,10 +72,10 @@ void copy_model_into_store(const std::filesystem::path& source, const std::files
   }
 }
 
-void run_whisper_model_downloader(const std::string& name)
+void _run_whisper_model_downloader(const std::string& name)
 {
-  const auto source_dir = whisper_source_dir();
-  const auto downloader = whisper_model_downloader();
+  const auto source_dir = _whisper_source_dir();
+  const auto downloader = _whisper_model_downloader();
 
   if (!std::filesystem::exists(source_dir / ".git")) {
     throw std::runtime_error("missing whisper.cpp checkout: " + source_dir.string() +
@@ -120,12 +122,12 @@ const std::vector<std::string>& get_supported_languages()
 
 std::string get_model_path(const std::string& name)
 {
-  return (model_dir() / ("ggml-" + name + ".bin")).string();
+  return (_model_dir() / ("ggml-" + name + ".bin")).string();
 }
 
 bool is_model_installed(const std::string& name)
 {
-  return file_exists_nonempty(get_model_path(name));
+  return _file_exists_nonempty(get_model_path(name));
 }
 
 bool is_supported_language(const std::string& language)
@@ -134,8 +136,9 @@ bool is_supported_language(const std::string& language)
     return true;
   }
 
-  const auto& supported = get_supported_languages();
-  return std::find(supported.begin(), supported.end(), language) != supported.end();
+  const auto& supported_languages = get_supported_languages();
+  return std::find(supported_languages.begin(), supported_languages.end(), language) !=
+         supported_languages.end();
 }
 
 bool is_english_only_model(const std::string& name)
@@ -145,7 +148,7 @@ bool is_english_only_model(const std::string& name)
 
 void validate_config(const config::Config& cfg)
 {
-  if (!is_supported_model_name(cfg.model)) {
+  if (!_is_supported_model_name(cfg.model)) {
     throw std::runtime_error("unsupported model size: " + cfg.model);
   }
 
@@ -178,42 +181,42 @@ std::string transcription_language_for(const config::Config& cfg)
 
 void list_models()
 {
-  auto cfg = config::load_config();
+  const auto config = config::load_config();
   std::cout << "Available models:\n";
 
-  for (const auto& m : get_supported_models()) {
-    const bool installed = is_model_installed(m);
-    const bool active = (m == cfg.model);
+  for (const auto& model_name : get_supported_models()) {
+    const bool installed = is_model_installed(model_name);
+    const bool active = model_name == config.model;
 
-    std::cout << "  " << (active ? "* " : "  ") << m << (installed ? " (installed)" : "")
+    std::cout << "  " << (active ? "* " : "  ") << model_name << (installed ? " (installed)" : "")
               << (active ? " (active)" : "") << "\n";
   }
 }
 
 void install_model(const std::string& name)
 {
-  if (!is_supported_model_name(name)) {
+  if (!_is_supported_model_name(name)) {
     throw std::runtime_error("unsupported model size: " + name);
   }
 
   const auto target_path = std::filesystem::path(get_model_path(name));
-  if (file_exists_nonempty(target_path)) {
+  if (_file_exists_nonempty(target_path)) {
     std::cout << "Model " << name << " is already installed.\n";
     return;
   }
 
-  const auto downloaded_path = whisper_model_path(name);
+  const auto downloaded_path = _whisper_model_path(name);
 
-  if (!file_exists_nonempty(downloaded_path)) {
-    run_whisper_model_downloader(name);
+  if (!_file_exists_nonempty(downloaded_path)) {
+    _run_whisper_model_downloader(name);
   }
   else {
     std::cout << "Using cached whisper.cpp model: " << downloaded_path << "\n";
   }
 
-  copy_model_into_store(downloaded_path, target_path);
+  _copy_model_into_store(downloaded_path, target_path);
 
-  if (!file_exists_nonempty(target_path)) {
+  if (!_file_exists_nonempty(target_path)) {
     throw std::runtime_error("model install did not create " + target_path.string());
   }
 
@@ -222,7 +225,7 @@ void install_model(const std::string& name)
 
 void use_model(const std::string& name)
 {
-  if (!is_supported_model_name(name)) {
+  if (!_is_supported_model_name(name)) {
     throw std::runtime_error("unsupported model size: " + name);
   }
 
@@ -231,39 +234,39 @@ void use_model(const std::string& name)
                              "' is not installed. Install it with: asryx --model install " + name);
   }
 
-  auto cfg = config::load_config();
-  cfg.model = name;
-  validate_config(cfg);
-  config::save_config(cfg);
+  auto config = config::load_config();
+  config.model = name;
+  validate_config(config);
+  config::save_config(config);
 
   std::cout << "Using model: " << name << "\n";
 }
 
 void use_language(const std::string& language)
 {
-  auto cfg = config::load_config();
-  cfg.language = language;
-  validate_config(cfg);
-  config::save_config(cfg);
+  auto config = config::load_config();
+  config.language = language;
+  validate_config(config);
+  config::save_config(config);
 
   std::cout << "Using language: " << language << "\n";
 }
 
 void uninstall_model(const std::string& name)
 {
-  if (!is_supported_model_name(name)) {
+  if (!_is_supported_model_name(name)) {
     throw std::runtime_error("unsupported model size: " + name);
   }
 
   const auto path = std::filesystem::path(get_model_path(name));
 
-  if (!file_exists_nonempty(path)) {
+  if (!_file_exists_nonempty(path)) {
     std::cout << "Model " << name << " is not installed.\n";
     return;
   }
 
-  const auto cfg = config::load_config();
-  if (cfg.model == name) {
+  const auto config = config::load_config();
+  if (config.model == name) {
     throw std::runtime_error("cannot uninstall active model '" + name +
                              "'; switch models first with: asryx --model use <other>");
   }

@@ -12,7 +12,7 @@ namespace app {
 
 namespace {
 
-void print_usage()
+void _print_usage()
 {
   std::cerr << "asryx - native Linux voice to text toggle\n\n"
             << "Usage:\n"
@@ -27,22 +27,22 @@ void print_usage()
             << "  asryx --model uninstall <name>  Uninstall a model\n";
 }
 
-void set_pipe_to(const std::string& command)
+void _set_pipe_to(const std::string& command)
 {
   if (command.empty()) {
     throw std::runtime_error("--pipe-to requires a non-empty command string");
   }
 
-  auto cfg = config::load_config();
-  cfg.pipe_to = command;
-  config::save_config(cfg);
+  auto config = config::load_config();
+  config.pipe_to = command;
+  config::save_config(config);
 }
 
-void clear_pipe_to()
+void _clear_pipe_to()
 {
-  auto cfg = config::load_config();
-  cfg.pipe_to.clear();
-  config::save_config(cfg);
+  auto config = config::load_config();
+  config.pipe_to.clear();
+  config::save_config(config);
 }
 
 } // namespace
@@ -61,12 +61,12 @@ int run(const std::vector<std::string>& args)
     }
 
     if (args.size() == 2 && args[0] == "--pipe-to") {
-      set_pipe_to(args[1]);
+      _set_pipe_to(args[1]);
       return 0;
     }
 
     if (args.size() == 1 && args[0] == "--no-pipe") {
-      clear_pipe_to();
+      _clear_pipe_to();
       return 0;
     }
 
@@ -100,7 +100,7 @@ int run(const std::vector<std::string>& args)
     }
 
     std::cerr << "error: invalid arguments\n\n";
-    print_usage();
+    _print_usage();
     return 1;
   }
   catch (const std::exception& e) {

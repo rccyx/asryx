@@ -10,7 +10,7 @@ namespace engine {
 bool copy_to_clipboard(const std::string& text)
 {
 #ifdef ASRYX_TESTING
-  if (auto hook = testing::copy_to_clipboard_hook()) {
+  if (const auto hook = testing::copy_to_clipboard_hook()) {
     return hook(text);
   }
 #endif
@@ -30,7 +30,7 @@ bool copy_to_clipboard(const std::string& text)
 bool send_notification(const std::string& message)
 {
 #ifdef ASRYX_TESTING
-  if (auto hook = testing::notification_hook()) {
+  if (const auto hook = testing::notification_hook()) {
     return hook(message);
   }
 #endif

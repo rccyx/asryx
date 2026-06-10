@@ -16,19 +16,20 @@ bool command_exists(const std::string& name)
 {
   static std::unordered_map<std::string, bool> cache;
 
-  auto cached = cache.find(name);
+  const auto cached = cache.find(name);
   if (cached != cache.end()) {
     return cached->second;
   }
 
-  pid_t pid = fork();
+  const pid_t pid = fork();
   if (pid == 0) {
-    int devnull = open("/dev/null", O_WRONLY);
-    if (devnull != -1) {
-      dup2(devnull, STDOUT_FILENO);
-      dup2(devnull, STDERR_FILENO);
-      close(devnull);
+    const int dev_null = open("/dev/null", O_WRONLY);
+    if (dev_null != -1) {
+      dup2(dev_null, STDOUT_FILENO);
+      dup2(dev_null, STDERR_FILENO);
+      close(dev_null);
     }
+
     execlp("which", "which", name.c_str(), nullptr);
     _exit(127);
   }
@@ -48,7 +49,7 @@ bool command_exists(const std::string& name)
 
 namespace {
 
-std::vector<char*> build_argv(const std::vector<std::string>& argv)
+std::vector<char*> _build_argv(const std::vector<std::string>& argv)
 {
   std::vector<char*> c_argv;
   c_argv.reserve(argv.size() + 1);
@@ -62,25 +63,25 @@ std::vector<char*> build_argv(const std::vector<std::string>& argv)
   return c_argv;
 }
 
-void redirect_stdout_to_devnull()
+void _redirect_stdout_to_devnull()
 {
-  int fd = open("/dev/null", O_WRONLY);
-  if (fd != -1) {
-    dup2(fd, STDOUT_FILENO);
-    close(fd);
+  const int dev_null = open("/dev/null", O_WRONLY);
+  if (dev_null != -1) {
+    dup2(dev_null, STDOUT_FILENO);
+    close(dev_null);
   }
 }
 
-void redirect_stderr_to_file(const std::string& path)
+void _redirect_stderr_to_file(const std::string& path)
 {
   if (path.empty()) {
     return;
   }
 
-  int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
-  if (fd != -1) {
-    dup2(fd, STDERR_FILENO);
-    close(fd);
+  const int file_descriptor = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  if (file_descriptor != -1) {
+    dup2(file_descriptor, STDERR_FILENO);
+    close(file_descriptor);
   }
 }
 
@@ -93,17 +94,17 @@ pid_t spawn_process_background(const std::vector<std::string>& argv,
     return -1;
   }
 
-  pid_t pid = fork();
+  const pid_t pid = fork();
   if (pid < 0) {
     return -1;
   }
 
   if (pid == 0) {
-    redirect_stdout_to_devnull();
-    redirect_stderr_to_file(redirect_file);
+    _redirect_stdout_to_devnull();
+    _redirect_stderr_to_file(redirect_file);
 
-    auto c_argv = build_argv(argv);
-    execvp(c_argv[0], c_argv.data());
+    auto process_args = _build_argv(argv);
+    execvp(process_args[0], process_args.data());
     _exit(127);
   }
 
@@ -123,14 +124,14 @@ bool run_process_blocking(const std::vector<std::string>& argv)
     return false;
   }
 
-  pid_t pid = fork();
+  const pid_t pid = fork();
   if (pid < 0) {
     return false;
   }
 
   if (pid == 0) {
-    auto c_argv = build_argv(argv);
-    execvp(c_argv[0], c_argv.data());
+    auto process_args = _build_argv(argv);
+    execvp(process_args[0], process_args.data());
     _exit(127);
   }
 
@@ -148,7 +149,7 @@ bool run_process_with_stdin(const std::vector<std::string>& argv, const std::str
     return false;
   }
 
-  pid_t pid = fork();
+  const pid_t pid = fork();
   if (pid < 0) {
     close(pipe_fds[0]);
     close(pipe_fds[1]);
@@ -161,8 +162,8 @@ bool run_process_with_stdin(const std::vector<std::string>& argv, const std::str
     dup2(pipe_fds[0], STDIN_FILENO);
     close(pipe_fds[0]);
 
-    auto c_argv = build_argv(argv);
-    execvp(c_argv[0], c_argv.data());
+    auto process_args = _build_argv(argv);
+    execvp(process_args[0], process_args.data());
     _exit(127);
   }
 
