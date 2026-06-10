@@ -191,6 +191,8 @@ void _start_recording(const std::filesystem::path& runtime_dir)
                              config.model);
   }
 
+  model::validate_vad_model();
+
   const auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
   const auto err_path = runtime_dir / std::string(constants::runtime::recorder_error_file);
   const pid_t pid = engine::start_recording(wav_path.string(), err_path.string());
@@ -247,9 +249,11 @@ void _stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pi
 
   const auto config = config::load_config();
   const auto language = model::transcription_language_for(config);
-  const auto model_path = model::get_model_path(config.model);
   const auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
-  const auto output = _trim(engine::transcribe(model_path, wav_path.string(), language));
+  const engine::TranscriptionRequest request{model::get_model_path(config.model),
+                                             model::get_vad_model_path(), wav_path.string(),
+                                             language};
+  const auto output = _trim(engine::transcribe(request));
 
   if (output.empty()) {
     engine::send_notification("no output");
