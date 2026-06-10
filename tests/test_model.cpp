@@ -49,6 +49,10 @@ void run_test_model()
 
   std::string path = model::get_model_path(std::string(constants::config::default_model));
   ASSERT_TRUE(!path.empty());
+  ASSERT_TRUE(!model::get_vad_model_path().empty());
+  ASSERT_FALSE(model::is_vad_model_installed());
+  ASSERT_TRUE(runtime_error_equals([] { model::validate_vad_model(); },
+                                   "VAD model is not installed: " + model::get_vad_model_path()));
 
   ASSERT_FALSE(model::is_model_installed(std::string(constants::config::default_model)));
   ASSERT_TRUE(runtime_error_equals(

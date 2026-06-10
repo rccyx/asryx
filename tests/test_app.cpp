@@ -45,11 +45,14 @@ void write_fake_model()
       std::filesystem::path(model::get_model_path(default_model)).parent_path());
   std::ofstream model_file(model::get_model_path(default_model));
   model_file << "fake model content";
+  std::ofstream vad_file(model::get_vad_model_path());
+  vad_file << "fake VAD model content";
 }
 
 void delete_fake_model()
 {
   platform::safe_delete_file(model::get_model_path(std::string(constants::config::default_model)));
+  platform::safe_delete_file(model::get_vad_model_path());
 }
 
 void reset_config()

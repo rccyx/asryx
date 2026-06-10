@@ -125,12 +125,9 @@ bool fake_stop(pid_t pid)
   return pid == getpid();
 }
 
-std::string fake_transcribe(const std::string& model_path, const std::string& wav_path,
-                            const std::string& language)
+std::string fake_transcribe(const engine::TranscriptionRequest& request)
 {
-  (void)model_path;
-  (void)wav_path;
-  (void)language;
+  (void)request;
   auto& s = state();
   ++s.transcribe_calls;
   std::ifstream state_file(runtime_file(std::string(constants::runtime::state_file)));
@@ -172,6 +169,8 @@ void write_fake_model()
       std::filesystem::path(model::get_model_path(default_model)).parent_path());
   std::ofstream model_file(model::get_model_path(default_model));
   model_file << "fake model content";
+  std::ofstream vad_file(model::get_vad_model_path());
+  vad_file << "fake VAD model content";
 }
 
 void reset_config(const std::string& pipe_to = "")
