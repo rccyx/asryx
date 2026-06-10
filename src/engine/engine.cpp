@@ -290,26 +290,29 @@ bool stop_recording(pid_t pid)
   return _wait_until_recorder_exits(pid);
 }
 
-std::string transcribe(const std::string& model_path, const std::string& wav_path,
-                       const std::string& language)
+std::string transcribe(const TranscriptionRequest& request)
 {
-  ASRYX_TEST_HOOK(transcribe_hook, model_path, wav_path, language);
+  ASRYX_TEST_HOOK(transcribe_hook, request);
 
-  if (!std::filesystem::exists(model_path)) {
-    throw std::runtime_error("model file does not exist: " + model_path);
+  if (!std::filesystem::exists(request.model_path)) {
+    throw std::runtime_error("model file does not exist: " + request.model_path);
   }
 
-  const auto samples = _read_pcm16_wav(wav_path);
+  if (!std::filesystem::exists(request.vad_model_path)) {
+    throw std::runtime_error("VAD model file does not exist: " + request.vad_model_path);
+  }
+
+  const auto samples = _read_pcm16_wav(request.wav_path);
 
   whisper_context_params context_params = whisper_context_default_params();
   std::unique_ptr<whisper_context, WhisperContextDeleter> ctx(
-      whisper_init_from_file_with_params(model_path.c_str(), context_params));
+      whisper_init_from_file_with_params(request.model_path.c_str(), context_params));
 
   if (ctx == nullptr) {
-    throw std::runtime_error("failed to initialize whisper model: " + model_path);
+    throw std::runtime_error("failed to initialize whisper model: " + request.model_path);
   }
 
-  const char* const language_arg = _whisper_language(ctx.get(), language);
+  const char* const language_arg = _whisper_language(ctx.get(), request.language);
 
   whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
   params.n_threads = _thread_count();
@@ -321,6 +324,9 @@ std::string transcribe(const std::string& model_path, const std::string& wav_pat
   params.suppress_nst = true;
   params.language = language_arg;
   params.detect_language = false;
+  params.vad = true;
+  params.vad_model_path = request.vad_model_path.c_str();
+  params.vad_params = whisper_vad_default_params();
 
   if (whisper_full(ctx.get(), params, samples.data(), static_cast<int>(samples.size())) != 0) {
     throw std::runtime_error("whisper transcription failed");

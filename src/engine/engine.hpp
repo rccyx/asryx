@@ -6,10 +6,17 @@
 
 namespace engine {
 
+struct TranscriptionRequest
+{
+  std::string model_path;
+  std::string vad_model_path;
+  std::string wav_path;
+  std::string language;
+};
+
 pid_t start_recording(const std::string& wav_path, const std::string& err_path);
 bool stop_recording(pid_t pid);
-std::string transcribe(const std::string& model_path, const std::string& wav_path,
-                       const std::string& language);
+std::string transcribe(const TranscriptionRequest& request);
 bool copy_to_clipboard(const std::string& text);
 bool send_notification(const std::string& message);
 
@@ -17,8 +24,7 @@ bool send_notification(const std::string& message);
 namespace testing {
 using StartRecordingHook = pid_t (*)(const std::string& wav_path, const std::string& err_path);
 using StopRecordingHook = bool (*)(pid_t pid);
-using TranscribeHook = std::string (*)(const std::string& model_path, const std::string& wav_path,
-                                       const std::string& language);
+using TranscribeHook = std::string (*)(const TranscriptionRequest& request);
 using CopyToClipboardHook = bool (*)(const std::string& text);
 using NotificationHook = bool (*)(const std::string& message);
 

@@ -57,6 +57,7 @@ inline constexpr std::string_view whisper_checkout_rel = ".local/opt/whisper.cpp
 inline constexpr std::string_view data_dir_rel = ".local/share/asryx";
 inline constexpr std::string_view cache_dir_rel = ".cache/asryx";
 inline constexpr std::string_view whisper_pin_rel = ".local/share/asryx/versions/whisper-cpp-sha";
+inline constexpr std::string_view VAD_MODEL_FILE = "ggml-silero-v6.2.0.bin";
 
 inline std::filesystem::path config_path(const std::filesystem::path& home)
 {
