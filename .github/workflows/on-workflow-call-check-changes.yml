@@ -4,33 +4,56 @@ on:
   workflow_call:
     outputs:
       non_docs:
-        description: "true if any non documentation files changed"
+        description: "true if the triggering commit changed any non-documentation files"
         value: ${{ jobs.detect.outputs.non_docs }}
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
   detect:
     runs-on: ubuntu-latest
     outputs:
-      non_docs: ${{ steps.filter.outputs.non_docs }}
+      non_docs: ${{ steps.detect.outputs.non_docs }}
     steps:
-      - name: checkout
+      - name: checkout pull request head commit
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+
+      - name: checkout push commit
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
 
       - name: detect non-docs changes
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          base: ${{ github.ref }}
-          predicate-quantifier: every
-          filters: |
-            non_docs:
-              - '**'
-              - '!README.md'
-              - '!docs/**'
-              - '!assets/**'
-              - '!**/*.md'
-              - '!**/*.mdx'
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          non_docs=false
+
+          while IFS= read -r path; do
+            case "${path}" in
+              README.md | \
+              docs/* | \
+              assets/* | \
+              *.md | \
+              *.mdx | \
+              **/*.md | \
+              **/*.mdx)
+                ;;
+              *)
+                non_docs=true
+                break
+                ;;
+            esac
+          done < <(git diff-tree --no-commit-id --name-only -r --root HEAD)
+
+          echo "non_docs=${non_docs}" >>"${GITHUB_OUTPUT}"
