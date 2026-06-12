@@ -15,6 +15,9 @@ permissions:
 
 jobs:
   changes:
+    permissions:
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/on-workflow-call-check-changes.yml
 
   shellcheck:
@@ -34,8 +37,7 @@ jobs:
     uses: ./.github/workflows/on-workflow-call-build.yml
 
   lint:
-    needs:
-      - build
+    needs: build
     uses: ./.github/workflows/on-workflow-call-lint.yml
 
   test:
