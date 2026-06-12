@@ -33,7 +33,7 @@ Runs local transcription against [GGML Whisper](https://github.com/ggml-org/whis
 
 The model supplies inference and all 99 language support options, while `asryx` owns the entire native Linux runtime around it.
 
-Records audio through the active Linux audio stack, runs recognition in process, writes the transcript to the active clipboard backend, optionally pipes it to a user command, emits desktop notifications, and removes runtime artifacts after completion.
+Records audio through the active Linux audio stack, runs recognition in process with local VAD, writes the transcript to the active clipboard backend, optionally pipes it to a user command, emits desktop notifications, and removes runtime artifacts after completion.
 
 Easily [installed](#installation), and more easily [removed](#uninstallation).
 
@@ -45,15 +45,15 @@ One command install. You compile the program on your own machine, no package man
 
 It uses standard C++ and Linux [dependencies](#dependencies), and it's CPU only by default, so it works with any machine, regardless of distro or GPU model.
 
-GGML Models are [downloaded locally](#uninstallation) and transcription runs against those weights on your machine.
+GGML models are [downloaded locally](#models) and transcription runs against those weights on your machine.
 
 [Reliable](#mechanism) is the word. Repeated invocations, key repeat, stale locks, interrupted sessions, and abandoned runtime artifacts are handled before a new recording begins.
 
-There is no ASR server, background daemon(s), hosted API, Python runtime, Node runtime, container layer, resident daemon, GUI process, dashboard, subscription, or network dependency during transcription.
+There is no ASR server, background daemon, hosted API, Python runtime, Node runtime, container layer, resident daemon, GUI process, dashboard, subscription, or network dependency during transcription.
 
 ## Usage
 
-The program is a toggle
+The program is a toggle.
 
 ```bash
 asryx
@@ -70,11 +70,11 @@ asryx
 The next invocation stops capture, transcribes locally, copies the transcript, notifies the session, and cleans the runtime directory.
 
 > [!TIP]
-> This toggle can be hooked to Sway, Hyprland, i3, GNOME, etc.
+> This toggle can be hooked to Sway, Hyprland, i3, GNOME, KDE, etc.
 
-And a very simple [CLI](#cli)
+And a very simple [CLI](#cli):
 
-```
+```text
 asryx                         # Toggle record/transcribe
 asryx status                  # Check idle/recording/transcribing
 asryx --pipe-to '<COMMAND>'   # Set post copy pipe command
@@ -93,9 +93,11 @@ Audio capture orchestration, runtime state, model management, clipboard delivery
 
 The audio path is native code. Captured audio is validated as RIFF/WAVE, walked chunk by chunk, checked for 16 kHz mono signed 16-bit PCM, and decoded from PCM16 into float samples before inference.
 
+Inference runs in process against the selected GGML Whisper model. A local Silero VAD model is passed into the same inference request so non speech regions are suppressed during recognition instead of leaking silence, dead air, breath noise, keyboard noise, chair noise, or empty regions into the transcript.
+
 Dependency free as in, not even a WAV library sits between the recorder output and the model input.
 
-Dependencies are ones you already have, only needed to compile the program, pipe audio to the audio server, and emit notifications, that's it.
+If your Linux system already plays audio, shows notifications, has a clipboard, and can compile a C++ project, you have everything you need.
 
 The recorder is launched as a native Linux process, tracked through its PID, stopped by signal, and verified to have exited before transcription begins.
 
@@ -108,6 +110,9 @@ Stale sessions are recovered automatically, and repeated invocations coalesce in
 ```text
 press
   -> acquire lock
+  -> load config
+  -> validate selected model
+  -> validate VAD model
   -> start local recorder
   -> write recorder pid
   -> mark state as recording
@@ -194,7 +199,7 @@ git clone https://github.com/rccyx/asryx
 cd asryx && bash ./scripts/install
 ```
 
-The installer validates the user environment, checks required tools, clones the pinned native inference source, builds the binary locally, installs the executable, writes the version pin, writes the default config, installs the default model, selects it, and prints a PATH note when `~/.local/bin` is unavailable from the current shell.
+The installer validates the user environment, checks required tools, clones the pinned native inference source, builds the binary locally, installs the executable, writes the version pin, writes the default config, installs the VAD model, installs the default transcription model, selects it, and prints a PATH note when `~/.local/bin` is unavailable from the current shell.
 
 Installed paths:
 
@@ -202,14 +207,21 @@ Installed paths:
 ~/.local/bin/asryx
 ~/.local/opt/whisper.cpp
 ~/.local/share/asryx/
+~/.local/share/asryx/ggml-silero-v6.2.0.bin
 ~/.local/share/asryx/versions/whisper-cpp-sha
 ~/.asryx.conf
 ```
 
-Default model:
+Default transcription model:
 
 ```text
 base.en
+```
+
+Default VAD model:
+
+```text
+ggml-silero-v6.2.0.bin
 ```
 
 Model downloads pull from [Hugging Face.](https://huggingface.co/ggerganov/whisper.cpp)
@@ -266,7 +278,8 @@ For clipboard, it depends on your session. Hyprland, Sway, and any other Wayland
 echo "$XDG_SESSION_TYPE"
 ```
 
-Desktop notifications require an active notification daemon such as Mako, Dunst, or the session's native notification service.
+> [!IMPORTANT]
+> Desktop notifications require an active notification daemon such as Mako, Dunst, or the session's native notification service.
 
 ## Keybind
 
@@ -274,26 +287,26 @@ The binary takes no arguments to toggle, so bind it to a key in the active compo
 
 I personally use `Alt + W`, so the config for each DE/WM becomes:
 
-Hyprland
+Hyprland:
 
 ```ini
 bind = ALT, W, exec, asryx
 ```
 
-Sway / i3
+Sway / i3:
 
 ```ini
 bindsym $mod+w exec asryx
 ```
 
-GNOME
+GNOME:
 
 ```text
 Settings > Keyboard > Custom Shortcuts
 command: asryx
 ```
 
-KDE Plasma
+KDE Plasma:
 
 ```text
 System Settings > Shortcuts > Custom Shortcuts
@@ -357,7 +370,7 @@ Set the post copy pipe hook:
 asryx --pipe-to 'tee -a ~/transcripts.txt'
 ```
 
-`asryx --pipe-to '<COMMAND>'` simply updates `pipe_to` in `~/.asryx.conf` and exits, you can also do it manually of course.
+`asryx --pipe-to '<COMMAND>'` simply updates `pipe_to` in `~/.asryx.conf` and exits. You can also do it manually.
 
 `--pipe-to` is just a shell command string, so it can be a script path, a binary, or any command expression the shell can run.
 
@@ -392,7 +405,7 @@ piped and copied to clipboard.
 
 ## Models
 
-Supported models:
+Supported transcription models:
 
 ```text
 tiny.en
@@ -423,16 +436,19 @@ Speed is relative to large on CPU.
 
 `base.en` is the default. It starts quickly and covers the default English offline transcription path.
 
+`ggml-silero-v6.2.0.bin` is installed alongside the transcription models and used automatically for voice activity detection.
+
 Installed models live under:
 
 ```text
 ~/.local/share/asryx/
 ```
 
-Example:
+Examples:
 
 ```text
 ~/.local/share/asryx/ggml-base.en.bin
+~/.local/share/asryx/ggml-silero-v6.2.0.bin
 ```
 
 ## Configuration
@@ -441,7 +457,7 @@ Configuration is stored in `~/.asryx.conf`.
 
 **Model**
 
-`model` selects the active model. Switching via CLI updates the config instantly:
+`model` selects the active transcription model. Switching via CLI updates the config instantly:
 
 ```bash
 asryx --model use small.en
