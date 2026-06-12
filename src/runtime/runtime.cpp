@@ -241,7 +241,7 @@ void _stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pi
 {
   if (!engine::stop_recording(rec_pid)) {
     _print_recorder_error(runtime_dir);
-    engine::send_notification("recorder did not stop ");
+    engine::send_notification("recorder did not stop");
     return;
   }
 
