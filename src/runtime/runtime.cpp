@@ -418,27 +418,20 @@ void cancel()
     return;
   }
 
-  try {
-    if (status == constants::runtime::recording_state) {
-      if (_cancel_recording(runtime_dir)) {
-        return;
-      }
-
-      if (_status_for(runtime_dir) == constants::runtime::transcribing_state) {
-        _cancel_transcribing(runtime_dir);
-      }
-
+  if (status == constants::runtime::recording_state) {
+    if (_cancel_recording(runtime_dir)) {
       return;
     }
 
-    if (status == constants::runtime::transcribing_state) {
+    if (_status_for(runtime_dir) == constants::runtime::transcribing_state) {
       _cancel_transcribing(runtime_dir);
     }
+
+    return;
   }
-  catch (const std::exception& e) {
-    std::cerr << "error: " << e.what() << "\n";
-    engine::send_notification("cancel failed");
-    std::exit(1);
+
+  if (status == constants::runtime::transcribing_state) {
+    _cancel_transcribing(runtime_dir);
   }
 }
 
