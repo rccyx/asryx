@@ -17,6 +17,7 @@ void _print_usage()
   std::cerr << "asryx - native Linux voice to text toggle\n\n"
             << "Usage:\n"
             << "  asryx                           Toggle recording/transcription\n"
+            << "  asryx cancel                    Cancel recording/transcription\n"
             << "  asryx status                    Print runtime state\n"
             << "  asryx --pipe-to <command>       Set post-copy pipe command\n"
             << "  asryx --no-pipe                 Clear post-copy pipe command\n"
@@ -52,6 +53,11 @@ int run(const std::vector<std::string>& args)
   try {
     if (args.empty()) {
       runtime::toggle();
+      return 0;
+    }
+
+    if (args.size() == 1 && args[0] == "cancel") {
+      runtime::cancel();
       return 0;
     }
 

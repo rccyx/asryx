@@ -35,6 +35,11 @@ std::filesystem::path _lock_dir_for(const std::filesystem::path& runtime_dir)
   return runtime_dir / std::string(constants::runtime::lock_dir_name);
 }
 
+std::filesystem::path _cancel_marker_for(const std::filesystem::path& runtime_dir)
+{
+  return runtime_dir / std::string(constants::runtime::cancel_marker_file);
+}
+
 bool _read_pid_file(const std::filesystem::path& path, pid_t& pid)
 {
   std::ifstream file(path);
@@ -76,6 +81,7 @@ void _clean_stale_payload(const std::filesystem::path& runtime_dir)
   platform::safe_delete_file(runtime_dir / std::string(constants::runtime::recorder_pid_file));
   platform::safe_delete_file(runtime_dir / std::string(constants::runtime::recorder_wav_file));
   platform::safe_delete_file(runtime_dir / std::string(constants::runtime::recorder_error_file));
+  platform::safe_delete_file(_cancel_marker_for(runtime_dir));
   platform::safe_delete_file(runtime_dir / std::string(constants::runtime::state_file));
 }
 
@@ -179,6 +185,17 @@ std::filesystem::path _write_runtime_log(const std::filesystem::path& runtime_di
   return path;
 }
 
+void _write_cancel_marker(const std::filesystem::path& runtime_dir)
+{
+  std::filesystem::create_directories(runtime_dir);
+  std::ofstream(_cancel_marker_for(runtime_dir)) << getpid() << "\n";
+}
+
+bool _cancel_requested(const std::filesystem::path& runtime_dir)
+{
+  return std::filesystem::exists(_cancel_marker_for(runtime_dir));
+}
+
 void _start_recording(const std::filesystem::path& runtime_dir)
 {
   _clean_stale_payload(runtime_dir);
@@ -253,8 +270,28 @@ void _stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pi
   const engine::TranscriptionRequest request{.model_path = model::get_model_path(config.model),
                                              .vad_model_path = model::get_vad_model_path(),
                                              .wav_path = wav_path.string(),
-                                             .language = language};
-  const auto output = _trim(engine::transcribe(request));
+                                             .language = language,
+                                             .cancel_marker_path =
+                                                 _cancel_marker_for(runtime_dir).string()};
+  std::string output;
+  try {
+    output = _trim(engine::transcribe(request));
+  }
+  catch (const std::exception&) {
+    if (_cancel_requested(runtime_dir)) {
+      _clean_stale_payload(runtime_dir);
+      engine::send_notification(std::string(constants::notifications::cancelled));
+      return;
+    }
+
+    throw;
+  }
+
+  if (_cancel_requested(runtime_dir)) {
+    _clean_stale_payload(runtime_dir);
+    engine::send_notification(std::string(constants::notifications::cancelled));
+    return;
+  }
 
   if (output.empty()) {
     engine::send_notification("no output");
@@ -282,6 +319,42 @@ std::string get_status()
   }
 
   return std::string(constants::runtime::idle_state);
+}
+
+void cancel()
+{
+  const auto runtime_dir = platform::get_runtime_directory();
+
+  if (!_acquire_lock(runtime_dir)) {
+    if (_read_state_file(runtime_dir) == constants::runtime::transcribing_state &&
+        _has_live_lock(runtime_dir))
+    {
+      _write_cancel_marker(runtime_dir);
+      engine::send_notification(std::string(constants::notifications::cancelling));
+    }
+
+    return;
+  }
+
+  try {
+    pid_t rec_pid = 0;
+    if (_has_live_recorder(runtime_dir, rec_pid)) {
+      engine::stop_recording(rec_pid);
+    }
+    else if (_read_state_file(runtime_dir) == constants::runtime::transcribing_state) {
+      _write_cancel_marker(runtime_dir);
+    }
+
+    _clean_stale_payload(runtime_dir);
+    engine::send_notification(std::string(constants::notifications::cancelled));
+    _release_lock(runtime_dir);
+  }
+  catch (const std::exception& e) {
+    std::cerr << "error: " << e.what() << "\n";
+    _clean_stale_payload(runtime_dir);
+    _release_lock(runtime_dir);
+    std::exit(1);
+  }
 }
 
 void toggle()

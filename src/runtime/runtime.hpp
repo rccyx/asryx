@@ -6,6 +6,7 @@
 namespace runtime {
 
 std::string get_status();
+void cancel();
 void toggle();
 
 #ifdef ASRYX_TESTING

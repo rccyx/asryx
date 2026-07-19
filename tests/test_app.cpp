@@ -26,6 +26,7 @@ void clean_runtime_files()
   platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_pid_file)));
   platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_wav_file)));
   platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_error_file)));
+  platform::safe_delete_file(runtime_file(std::string(constants::runtime::cancel_marker_file)));
   platform::safe_delete_file(runtime_file(std::string(constants::runtime::state_file)));
 }
 
@@ -108,6 +109,7 @@ void run_test_app()
   assert_control_command_does_not_record({"--model", "use", "base.en"});
   assert_control_command_does_not_record({"--model", "uninstall", "tiny.en"});
   assert_control_command_does_not_record({"--pipe-to", "tee -a ~/x.txt"});
+  assert_control_command_does_not_record({"cancel"});
 
   auto cfg = config::load_config();
   ASSERT_EQ(cfg.pipe_to, std::string("tee -a ~/x.txt"));

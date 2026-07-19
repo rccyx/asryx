@@ -33,6 +33,7 @@ inline constexpr std::string_view recorder_pid_file = "rec.pid";
 inline constexpr std::string_view recorder_wav_file = "rec.wav";
 inline constexpr std::string_view recorder_error_file = "rec.err";
 inline constexpr std::string_view error_log_file = "error.log";
+inline constexpr std::string_view cancel_marker_file = "cancel";
 inline constexpr std::string_view state_file = "state";
 inline constexpr std::string_view idle_state = "idle";
 inline constexpr std::string_view recording_state = "recording";
@@ -45,6 +46,8 @@ namespace notifications {
 inline constexpr std::string_view transcription_copied = "transcription copied to clipboard.";
 inline constexpr std::string_view pipe_copied = "piped and copied to clipboard.";
 inline constexpr std::string_view pipe_failed = "copied to clipboard (pipe failed).";
+inline constexpr std::string_view cancelled = "cancelled";
+inline constexpr std::string_view cancelling = "cancelling…";
 
 } // namespace notifications
 

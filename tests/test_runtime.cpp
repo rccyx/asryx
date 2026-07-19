@@ -27,7 +27,9 @@ struct TestState
   std::string copied_text;
   std::string last_notification;
   std::string transcript = " transcript text \n";
+  std::string last_cancel_marker_path;
   bool clipboard_result = true;
+  bool cancel_during_transcribe = false;
   bool saw_transcribing_state = false;
   pid_t last_started_pid = 0;
 };
@@ -66,6 +68,11 @@ std::filesystem::path pipe_fail_marker_path()
   return runtime_dir() / "pipe-failed.out";
 }
 
+std::filesystem::path cancel_marker_path()
+{
+  return runtime_file(std::string(constants::runtime::cancel_marker_file));
+}
+
 pid_t dead_pid()
 {
   return 99999999;
@@ -83,6 +90,7 @@ void clean_runtime()
   platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_pid_file)));
   platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_wav_file)));
   platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_error_file)));
+  platform::safe_delete_file(cancel_marker_path());
   platform::safe_delete_file(runtime_file(std::string(constants::runtime::state_file)));
   platform::safe_delete_file(runtime_file(std::string(constants::runtime::error_log_file)));
   delete_if_exists(pipe_output_path());
@@ -127,13 +135,17 @@ bool fake_stop(pid_t pid)
 
 std::string fake_transcribe(const engine::TranscriptionRequest& request)
 {
-  (void)request;
   auto& s = state();
   ++s.transcribe_calls;
+  s.last_cancel_marker_path = request.cancel_marker_path;
   std::ifstream state_file(runtime_file(std::string(constants::runtime::state_file)));
   std::string runtime_state;
   state_file >> runtime_state;
   s.saw_transcribing_state = runtime_state == constants::runtime::transcribing_state;
+  if (s.cancel_during_transcribe) {
+    write_text(request.cancel_marker_path, "cancel\n");
+  }
+
   return s.transcript;
 }
 
@@ -202,6 +214,7 @@ bool runtime_payload_exists()
              runtime_file(std::string(constants::runtime::recorder_wav_file))) ||
          std::filesystem::exists(
              runtime_file(std::string(constants::runtime::recorder_error_file))) ||
+         std::filesystem::exists(cancel_marker_path()) ||
          std::filesystem::exists(runtime_file(std::string(constants::runtime::state_file)));
 }
 
@@ -245,6 +258,7 @@ void run_test_runtime()
   ASSERT_EQ(state().stop_calls, 1);
   ASSERT_EQ(state().transcribe_calls, 1);
   ASSERT_TRUE(state().saw_transcribing_state);
+  ASSERT_EQ(state().last_cancel_marker_path, cancel_marker_path().string());
   ASSERT_EQ(state().clipboard_calls, 1);
   ASSERT_EQ(state().copied_text, std::string("transcript text"));
   ASSERT_EQ(state().last_notification, std::string(constants::notifications::transcription_copied));
@@ -335,6 +349,45 @@ void run_test_runtime()
   ASSERT_EQ(state().last_notification, std::string(constants::notifications::pipe_failed));
   ASSERT_TRUE(
       std::filesystem::exists(runtime_file(std::string(constants::runtime::error_log_file))));
+  ASSERT_FALSE(runtime_payload_exists());
+  assert_lock_released();
+
+  clean_runtime();
+  install_default_hooks();
+  write_pid_file(getpid());
+  write_text(runtime_file(std::string(constants::runtime::recorder_wav_file)), "fake wav");
+  write_text(runtime_file(std::string(constants::runtime::state_file)),
+             std::string(constants::runtime::recording_state) + "\n");
+  runtime::cancel();
+  ASSERT_EQ(state().stop_calls, 1);
+  ASSERT_EQ(state().transcribe_calls, 0);
+  ASSERT_EQ(state().last_notification, std::string(constants::notifications::cancelled));
+  ASSERT_FALSE(runtime_payload_exists());
+  assert_lock_released();
+
+  clean_runtime();
+  install_default_hooks();
+  write_text(runtime_file(std::string(constants::runtime::state_file)),
+             std::string(constants::runtime::transcribing_state) + "\n");
+  write_lock_pid(getpid());
+  runtime::cancel();
+  ASSERT_EQ(state().stop_calls, 0);
+  ASSERT_EQ(state().transcribe_calls, 0);
+  ASSERT_EQ(state().last_notification, std::string(constants::notifications::cancelling));
+  ASSERT_TRUE(std::filesystem::exists(cancel_marker_path()));
+  ASSERT_TRUE(std::filesystem::exists(lock_dir()));
+  platform::safe_delete_directory(lock_dir());
+
+  clean_runtime();
+  reset_config();
+  install_default_hooks();
+  state().cancel_during_transcribe = true;
+  write_pid_file(getpid());
+  write_text(runtime_file(std::string(constants::runtime::recorder_wav_file)), "fake wav");
+  runtime::toggle();
+  ASSERT_EQ(state().transcribe_calls, 1);
+  ASSERT_EQ(state().clipboard_calls, 0);
+  ASSERT_EQ(state().last_notification, std::string(constants::notifications::cancelled));
   ASSERT_FALSE(runtime_payload_exists());
   assert_lock_released();
 
