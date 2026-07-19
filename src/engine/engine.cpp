@@ -315,6 +315,12 @@ std::string transcribe(const TranscriptionRequest& request)
   const char* const language_arg = _whisper_language(ctx.get(), request.language);
 
   whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+
+  params.temperature = 0.0f;
+  params.temperature_inc = 0.2f;
+  params.greedy.best_of = 1;
+  params.no_context = false;
+
   params.n_threads = _thread_count();
   params.print_progress = false;
   params.print_realtime = false;
