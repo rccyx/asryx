@@ -4,7 +4,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 LIMITS = {
-    ".cpp": 450, # TODO: set to 350
+    ".cpp": 350, 
     ".hpp": 260,
     ".c": 350,
     ".h": 260,
