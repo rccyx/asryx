@@ -247,23 +247,28 @@ bool _wait_for_idle(const std::filesystem::path& runtime_dir)
   return _status_for(runtime_dir) == constants::runtime::idle_state;
 }
 
-void _cancel_recording(const std::filesystem::path& runtime_dir)
+bool _cancel_recording(const std::filesystem::path& runtime_dir)
 {
   if (!_acquire_lock(runtime_dir)) {
-    return;
+    return false;
   }
 
   try {
     pid_t rec_pid = 0;
     if (!_has_live_recorder(runtime_dir, rec_pid)) {
       _release_lock(runtime_dir);
-      return;
+      return true;
     }
 
-    engine::stop_recording(rec_pid);
+    if (!engine::stop_recording(rec_pid)) {
+      _print_recorder_error(runtime_dir);
+      throw std::runtime_error("recorder did not stop");
+    }
+
     _clean_stale_payload(runtime_dir);
     engine::send_notification(std::string(constants::notifications::cancelled));
     _release_lock(runtime_dir);
+    return true;
   }
   catch (...) {
     _release_lock(runtime_dir);
@@ -415,14 +420,24 @@ void cancel()
 
   try {
     if (status == constants::runtime::recording_state) {
-      _cancel_recording(runtime_dir);
+      if (_cancel_recording(runtime_dir)) {
+        return;
+      }
+
+      if (_status_for(runtime_dir) == constants::runtime::transcribing_state) {
+        _cancel_transcribing(runtime_dir);
+      }
+
       return;
     }
 
-    _cancel_transcribing(runtime_dir);
+    if (status == constants::runtime::transcribing_state) {
+      _cancel_transcribing(runtime_dir);
+    }
   }
   catch (const std::exception& e) {
     std::cerr << "error: " << e.what() << "\n";
+    engine::send_notification("cancel failed");
     std::exit(1);
   }
 }
