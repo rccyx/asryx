@@ -1,7 +1,7 @@
 #include "engine/engine.hpp"
 
-#include "engine/recorder.hpp"
-#include "engine/transcription.hpp"
+#include "engine/recorder/recorder.hpp"
+#include "engine/transcription/transcription.hpp"
 
 #include <string>
 

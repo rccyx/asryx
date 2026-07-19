@@ -1,7 +1,7 @@
-#include "engine/transcription.hpp"
+#include "engine/transcription/transcription.hpp"
 
 #include "constants/constants.hpp"
-#include "engine/audio.hpp"
+#include "engine/audio/audio.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -88,7 +88,7 @@ whisper_full_params _params(whisper_context* ctx, const TranscriptionRequest& re
   whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
   params.temperature = 0.0f;
-  params.temperature_inc = 0.0f; 
+  params.temperature_inc = 0.0f;
   params.greedy.best_of = 1;
   params.no_context = false;
 
