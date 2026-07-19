@@ -72,6 +72,7 @@ const char* _language(whisper_context* ctx, const std::string& language)
   return language.c_str();
 }
 
+// cppcheck-suppress constParameterCallback
 bool _abort_requested(void* user_data)
 {
   if (user_data == nullptr) {
@@ -93,7 +94,7 @@ WhisperContext _load_context(const std::string& model_path)
   return ctx;
 }
 
-whisper_full_params _params(whisper_context* ctx, const TranscriptionRequest& request)
+whisper_full_params _params(whisper_context* ctx, TranscriptionRequest& request)
 {
   whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
@@ -115,8 +116,7 @@ whisper_full_params _params(whisper_context* ctx, const TranscriptionRequest& re
   params.vad_model_path = request.vad_model_path.c_str();
   params.vad_params = whisper_vad_default_params();
   params.abort_callback = _abort_requested;
-  params.abort_callback_user_data =
-      const_cast<void*>(static_cast<const void*>(&request.cancel_marker_path));
+  params.abort_callback_user_data = &request.cancel_marker_path;
 
   return params;
 }
@@ -144,12 +144,13 @@ std::string run(const TranscriptionRequest& request)
 
   const auto samples = audio::read_pcm16_wav(request.wav_path);
   const auto ctx = _load_context(request.model_path);
-  const auto params = _params(ctx.get(), request);
+  auto transcription_request = request;
+  const auto params = _params(ctx.get(), transcription_request);
 
   if (whisper_full(ctx.get(), params, samples.data(), static_cast<int>(samples.size())) != 0) {
     if (!request.cancel_marker_path.empty() && std::filesystem::exists(request.cancel_marker_path))
     {
-      throw std::runtime_error("transcription canceled");
+      throw TranscriptionCancelled();
     }
 
     throw std::runtime_error("transcription failed");

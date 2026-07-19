@@ -354,13 +354,24 @@ void run_test_runtime()
 
   clean_runtime();
   install_default_hooks();
+  runtime::cancel();
+  ASSERT_EQ(state().stop_calls, 0);
+  ASSERT_EQ(state().transcribe_calls, 0);
+  ASSERT_EQ(state().notification_calls, 0);
+  ASSERT_FALSE(runtime_payload_exists());
+  ASSERT_FALSE(std::filesystem::exists(lock_dir()));
+
+  clean_runtime();
+  install_default_hooks();
   write_pid_file(getpid());
   write_text(runtime_file(std::string(constants::runtime::recorder_wav_file)), "fake wav");
   write_text(runtime_file(std::string(constants::runtime::state_file)),
              std::string(constants::runtime::recording_state) + "\n");
   runtime::cancel();
+  runtime::cancel();
   ASSERT_EQ(state().stop_calls, 1);
   ASSERT_EQ(state().transcribe_calls, 0);
+  ASSERT_EQ(state().notification_calls, 1);
   ASSERT_EQ(state().last_notification, std::string(constants::notifications::cancelled));
   ASSERT_FALSE(runtime_payload_exists());
   assert_lock_released();
@@ -371,8 +382,10 @@ void run_test_runtime()
              std::string(constants::runtime::transcribing_state) + "\n");
   write_lock_pid(getpid());
   runtime::cancel();
+  runtime::cancel();
   ASSERT_EQ(state().stop_calls, 0);
   ASSERT_EQ(state().transcribe_calls, 0);
+  ASSERT_EQ(state().notification_calls, 1);
   ASSERT_EQ(state().last_notification, std::string(constants::notifications::cancelling));
   ASSERT_TRUE(std::filesystem::exists(cancel_marker_path()));
   ASSERT_TRUE(std::filesystem::exists(lock_dir()));

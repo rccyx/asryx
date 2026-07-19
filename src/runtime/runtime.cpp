@@ -8,7 +8,10 @@
 #include "platform/process.hpp"
 
 #include <cctype>
+#include <cerrno>
+#include <chrono>
 #include <cstdlib>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -16,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <sys/types.h>
+#include <thread>
 #include <unistd.h>
 
 namespace runtime {
@@ -185,15 +189,101 @@ std::filesystem::path _write_runtime_log(const std::filesystem::path& runtime_di
   return path;
 }
 
-void _write_cancel_marker(const std::filesystem::path& runtime_dir)
+bool _create_cancel_marker(const std::filesystem::path& runtime_dir)
 {
   std::filesystem::create_directories(runtime_dir);
-  std::ofstream(_cancel_marker_for(runtime_dir)) << getpid() << "\n";
+  const auto marker_path = _cancel_marker_for(runtime_dir);
+  const int fd = open(marker_path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+  if (fd == -1) {
+    if (errno == EEXIST) {
+      return false;
+    }
+
+    throw std::runtime_error("failed to create cancel marker: " + marker_path.string());
+  }
+
+  const auto pid = std::to_string(getpid()) + "\n";
+  const ssize_t written = write(fd, pid.c_str(), pid.size());
+  const int close_status = close(fd);
+  if (written < 0 || static_cast<size_t>(written) != pid.size() || close_status == -1) {
+    platform::safe_delete_file(marker_path);
+    throw std::runtime_error("failed to write cancel marker: " + marker_path.string());
+  }
+
+  return true;
 }
 
 bool _cancel_requested(const std::filesystem::path& runtime_dir)
 {
   return std::filesystem::exists(_cancel_marker_for(runtime_dir));
+}
+
+std::string _status_for(const std::filesystem::path& runtime_dir)
+{
+  const auto state = _read_state_file(runtime_dir);
+
+  pid_t rec_pid = 0;
+  if (_has_live_recorder(runtime_dir, rec_pid)) {
+    return std::string(constants::runtime::recording_state);
+  }
+
+  if (state == constants::runtime::transcribing_state && _has_live_lock(runtime_dir)) {
+    return std::string(constants::runtime::transcribing_state);
+  }
+
+  return std::string(constants::runtime::idle_state);
+}
+
+bool _wait_for_idle(const std::filesystem::path& runtime_dir)
+{
+  for (int attempt = 0; attempt < 100; ++attempt) {
+    if (_status_for(runtime_dir) == constants::runtime::idle_state) {
+      return true;
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+
+  return _status_for(runtime_dir) == constants::runtime::idle_state;
+}
+
+void _cancel_recording(const std::filesystem::path& runtime_dir)
+{
+  if (!_acquire_lock(runtime_dir)) {
+    return;
+  }
+
+  try {
+    pid_t rec_pid = 0;
+    if (!_has_live_recorder(runtime_dir, rec_pid)) {
+      _release_lock(runtime_dir);
+      return;
+    }
+
+    engine::stop_recording(rec_pid);
+    _clean_stale_payload(runtime_dir);
+    engine::send_notification(std::string(constants::notifications::cancelled));
+    _release_lock(runtime_dir);
+  }
+  catch (...) {
+    _release_lock(runtime_dir);
+    throw;
+  }
+}
+
+void _cancel_transcribing(const std::filesystem::path& runtime_dir)
+{
+  if (!_create_cancel_marker(runtime_dir)) {
+    return;
+  }
+
+  if (_wait_for_idle(runtime_dir)) {
+    return;
+  }
+
+  if (_status_for(runtime_dir) == constants::runtime::transcribing_state) {
+    engine::send_notification(std::string(constants::notifications::cancelling));
+  }
 }
 
 void _start_recording(const std::filesystem::path& runtime_dir)
@@ -277,6 +367,11 @@ void _stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pi
   try {
     output = _trim(engine::transcribe(request));
   }
+  catch (const engine::TranscriptionCancelled&) {
+    _clean_stale_payload(runtime_dir);
+    engine::send_notification(std::string(constants::notifications::cancelled));
+    return;
+  }
   catch (const std::exception&) {
     if (_cancel_requested(runtime_dir)) {
       _clean_stale_payload(runtime_dir);
@@ -306,53 +401,28 @@ void _stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pi
 
 std::string get_status()
 {
-  const auto runtime_dir = platform::get_runtime_directory();
-  const auto state = _read_state_file(runtime_dir);
-
-  pid_t rec_pid = 0;
-  if (_has_live_recorder(runtime_dir, rec_pid)) {
-    return std::string(constants::runtime::recording_state);
-  }
-
-  if (state == constants::runtime::transcribing_state && _has_live_lock(runtime_dir)) {
-    return std::string(constants::runtime::transcribing_state);
-  }
-
-  return std::string(constants::runtime::idle_state);
+  return _status_for(platform::get_runtime_directory());
 }
 
 void cancel()
 {
   const auto runtime_dir = platform::get_runtime_directory();
+  const auto status = _status_for(runtime_dir);
 
-  if (!_acquire_lock(runtime_dir)) {
-    if (_read_state_file(runtime_dir) == constants::runtime::transcribing_state &&
-        _has_live_lock(runtime_dir))
-    {
-      _write_cancel_marker(runtime_dir);
-      engine::send_notification(std::string(constants::notifications::cancelling));
-    }
-
+  if (status == constants::runtime::idle_state) {
     return;
   }
 
   try {
-    pid_t rec_pid = 0;
-    if (_has_live_recorder(runtime_dir, rec_pid)) {
-      engine::stop_recording(rec_pid);
-    }
-    else if (_read_state_file(runtime_dir) == constants::runtime::transcribing_state) {
-      _write_cancel_marker(runtime_dir);
+    if (status == constants::runtime::recording_state) {
+      _cancel_recording(runtime_dir);
+      return;
     }
 
-    _clean_stale_payload(runtime_dir);
-    engine::send_notification(std::string(constants::notifications::cancelled));
-    _release_lock(runtime_dir);
+    _cancel_transcribing(runtime_dir);
   }
   catch (const std::exception& e) {
     std::cerr << "error: " << e.what() << "\n";
-    _clean_stale_payload(runtime_dir);
-    _release_lock(runtime_dir);
     std::exit(1);
   }
 }

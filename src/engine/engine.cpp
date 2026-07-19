@@ -20,6 +20,11 @@ namespace {
 
 } // namespace
 
+TranscriptionCancelled::TranscriptionCancelled()
+    : std::runtime_error("transcription canceled")
+{
+}
+
 pid_t start_recording(const std::string& wav_path, const std::string& err_path)
 {
   ASRYX_TEST_HOOK(start_recording_hook, wav_path, err_path);

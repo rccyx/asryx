@@ -1,10 +1,17 @@
 #ifndef ASRYX_ENGINE_ENGINE_HPP
 #define ASRYX_ENGINE_ENGINE_HPP
 
+#include <stdexcept>
 #include <string>
 #include <sys/types.h>
 
 namespace engine {
+
+class TranscriptionCancelled final : public std::runtime_error
+{
+public:
+  TranscriptionCancelled();
+};
 
 struct TranscriptionRequest
 {
