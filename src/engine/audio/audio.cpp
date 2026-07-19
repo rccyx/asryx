@@ -39,9 +39,9 @@ struct WavChunks
 
 struct Pcm16Data
 {
-  const std::vector<std::uint8_t>& bytes;
-  size_t offset;
-  size_t size;
+  const std::vector<std::uint8_t>* bytes = nullptr;
+  size_t offset = 0;
+  size_t size = 0;
 };
 
 bool _chunk_is(const std::vector<std::uint8_t>& bytes, size_t offset, const char* id)
@@ -104,8 +104,10 @@ void _validate_wav_format(const WavFormat& format)
 
 WavFormat _read_wav_format(const std::vector<std::uint8_t>& bytes, size_t offset)
 {
-  return {_read_u16_le(bytes, offset), _read_u16_le(bytes, offset + 2),
-          _read_u32_le(bytes, offset + 4), _read_u16_le(bytes, offset + 14)};
+  return {.audio_format = _read_u16_le(bytes, offset),
+          .channels = _read_u16_le(bytes, offset + 2),
+          .sample_rate = _read_u32_le(bytes, offset + 4),
+          .bits_per_sample = _read_u16_le(bytes, offset + 14)};
 }
 
 WavDataChunk _read_wav_data_chunk(const std::vector<std::uint8_t>& bytes, size_t offset,
@@ -115,7 +117,7 @@ WavDataChunk _read_wav_data_chunk(const std::vector<std::uint8_t>& bytes, size_t
   const size_t size =
       declared_size == 0 || declared_size > remaining_bytes ? remaining_bytes : declared_size;
 
-  return {offset, size};
+  return {.offset = offset, .size = size};
 }
 
 WavChunks _read_wav_chunks(const std::vector<std::uint8_t>& bytes)
@@ -167,8 +169,8 @@ std::vector<float> _decode_pcm16(const Pcm16Data& data)
   samples.reserve(aligned_size / 2U);
 
   for (size_t i = data.offset; i < data.offset + aligned_size; i += 2) {
-    const auto high = static_cast<std::uint16_t>(data.bytes[i + 1]);
-    const auto low = static_cast<std::uint16_t>(data.bytes[i]);
+    const auto high = static_cast<std::uint16_t>((*data.bytes)[i + 1]);
+    const auto low = static_cast<std::uint16_t>((*data.bytes)[i]);
     const auto raw = static_cast<std::uint16_t>(low | static_cast<std::uint16_t>(high << 8U));
     const auto sample = static_cast<std::int16_t>(raw);
     samples.push_back(static_cast<float>(sample) / PCM16_SCALE);
@@ -188,7 +190,8 @@ std::vector<float> read_pcm16_wav(const std::string& path)
   const auto chunks = _read_wav_chunks(bytes);
   _validate_wav_format(chunks.format);
 
-  return _decode_pcm16({bytes, chunks.sample_data.offset, chunks.sample_data.size});
+  return _decode_pcm16(
+      {.bytes = &bytes, .offset = chunks.sample_data.offset, .size = chunks.sample_data.size});
 }
 
 } // namespace engine::audio

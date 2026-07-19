@@ -210,9 +210,9 @@ void _route_transcription(const std::filesystem::path& runtime_dir, const config
 {
   if (!engine::copy_to_clipboard(output)) {
     const auto log_path =
-        _write_runtime_log(runtime_dir, "clipboard copy failed; transcript was not copied.\n");
-    std::cerr << "clipboard failed; see log: " << log_path << "\n";
-    engine::send_notification("clipboard failed; see log");
+        _write_runtime_log(runtime_dir, "clipboard copy failed! transcript was not copied.\n");
+    std::cerr << "clipboard failed! see log: " << log_path << "\n";
+    engine::send_notification("clipboard failed! see log");
     _clean_stale_payload(runtime_dir);
     return;
   }
@@ -225,8 +225,8 @@ void _route_transcription(const std::filesystem::path& runtime_dir, const config
 
   if (!platform::run_process_with_stdin({"sh", "-c", cfg.pipe_to}, output)) {
     const auto log_path = _write_runtime_log(
-        runtime_dir, "pipe target failed; transcript was copied to clipboard.\n");
-    std::cerr << "pipe target failed; transcript remains in clipboard; see log: " << log_path
+        runtime_dir, "pipe target failed! transcript was copied to clipboard.\n");
+    std::cerr << "pipe target failed! transcript remains in clipboard, see log: " << log_path
               << "\n";
     engine::send_notification(std::string(constants::notifications::pipe_failed));
     _clean_stale_payload(runtime_dir);
@@ -250,9 +250,10 @@ void _stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pi
   const auto config = config::load_config();
   const auto language = model::transcription_language_for(config);
   const auto wav_path = runtime_dir / std::string(constants::runtime::recorder_wav_file);
-  const engine::TranscriptionRequest request{model::get_model_path(config.model),
-                                             model::get_vad_model_path(), wav_path.string(),
-                                             language};
+  const engine::TranscriptionRequest request{.model_path = model::get_model_path(config.model),
+                                             .vad_model_path = model::get_vad_model_path(),
+                                             .wav_path = wav_path.string(),
+                                             .language = language};
   const auto output = _trim(engine::transcribe(request));
 
   if (output.empty()) {
