@@ -10,7 +10,6 @@
 #include <cctype>
 #include <cerrno>
 #include <chrono>
-#include <cstdlib>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -475,7 +474,7 @@ void toggle()
     engine::send_notification("asryx failed; see log");
     _clean_stale_payload(runtime_dir);
     _release_lock(runtime_dir);
-    std::exit(1);
+    throw;
   }
 }
 
