@@ -53,7 +53,7 @@ int _thread_count()
 {
   const auto detected = std::thread::hardware_concurrency();
   if (detected == 0) {
-    return 4;
+    return 4; // TODO: this ain't it chief!
   }
 
   return static_cast<int>(std::min(4U, detected));

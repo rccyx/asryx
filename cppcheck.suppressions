@@ -1,2 +1,3 @@
 missingIncludeSystem
 unmatchedSuppression
+unusedFunction:src/engine/testing_hooks.cpp
