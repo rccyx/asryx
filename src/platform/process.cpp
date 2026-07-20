@@ -12,41 +12,6 @@
 
 namespace platform {
 
-bool command_exists(const std::string& name)
-{
-  static std::unordered_map<std::string, bool> cache;
-
-  const auto cached = cache.find(name);
-  if (cached != cache.end()) {
-    return cached->second;
-  }
-
-  const pid_t pid = fork();
-  if (pid == 0) {
-    const int dev_null = open("/dev/null", O_WRONLY);
-    if (dev_null != -1) {
-      dup2(dev_null, STDOUT_FILENO);
-      dup2(dev_null, STDERR_FILENO);
-      close(dev_null);
-    }
-
-    execlp("which", "which", name.c_str(), nullptr);
-    _exit(127);
-  }
-
-  if (pid < 0) {
-    cache[name] = false;
-    return false;
-  }
-
-  int status = 0;
-  waitpid(pid, &status, 0);
-
-  const bool found = WIFEXITED(status) && WEXITSTATUS(status) == 0;
-  cache[name] = found;
-  return found;
-}
-
 namespace {
 
 std::vector<char*> _build_argv(const std::vector<std::string>& argv)
@@ -86,6 +51,41 @@ void _redirect_stderr_to_file(const std::string& path)
 }
 
 } // namespace
+
+bool command_exists(const std::string& name)
+{
+  static std::unordered_map<std::string, bool> cache;
+
+  const auto cached = cache.find(name);
+  if (cached != cache.end()) {
+    return cached->second;
+  }
+
+  const pid_t pid = fork();
+  if (pid == 0) {
+    const int dev_null = open("/dev/null", O_WRONLY);
+    if (dev_null != -1) {
+      dup2(dev_null, STDOUT_FILENO);
+      dup2(dev_null, STDERR_FILENO);
+      close(dev_null);
+    }
+
+    execlp("which", "which", name.c_str(), nullptr);
+    _exit(127);
+  }
+
+  if (pid < 0) {
+    cache[name] = false;
+    return false;
+  }
+
+  int status = 0;
+  waitpid(pid, &status, 0);
+
+  const bool found = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+  cache[name] = found;
+  return found;
+}
 
 pid_t spawn_process_background(const std::vector<std::string>& argv,
                                const std::string& redirect_file)
