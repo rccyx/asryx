@@ -4,6 +4,7 @@
 #include "platform/fs.hpp"
 #include "platform/process.hpp"
 
+#include <array>
 #include <cctype>
 #include <cerrno>
 #include <chrono>
@@ -149,8 +150,8 @@ void clean_payload(const std::filesystem::path& runtime_dir)
 {
   using PathBuilder = std::filesystem::path (*)(const std::filesystem::path&);
 
-  static constexpr PathBuilder targets[] = {recorder_pid_path, recorder_wav_path,
-                                            recorder_error_path, cancel_marker_path, _state_path};
+  static constexpr std::array<PathBuilder, 5> targets = {
+      recorder_pid_path, recorder_wav_path, recorder_error_path, cancel_marker_path, _state_path};
 
   for (const auto& build_path : targets) {
     platform::safe_delete_file(build_path(runtime_dir));
