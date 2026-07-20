@@ -18,7 +18,7 @@ set(ASRYX_WHISPER_SOURCE_DIR "$ENV{HOME}/.local/opt/whisper.cpp")
 if(NOT EXISTS "${ASRYX_WHISPER_SOURCE_DIR}/CMakeLists.txt")
   message(
     FATAL_ERROR
-      "missing whisper.cpp checkout: ${ASRYX_WHISPER_SOURCE_DIR}. run ./scripts/install first."
+      "missing whisper.cpp checkout: ${ASRYX_WHISPER_SOURCE_DIR}. run ./package/install first."
   )
 endif()
 

@@ -84,7 +84,7 @@ void _run_whisper_model_downloader(const std::string& name)
 
   if (!std::filesystem::exists(source_dir / ".git")) {
     throw std::runtime_error("missing whisper.cpp checkout: " + source_dir.string() +
-                             ". Run ./scripts/install first.");
+                             ". Run ./package/install first.");
   }
 
   if (!std::filesystem::exists(downloader)) {

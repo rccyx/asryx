@@ -101,7 +101,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo -u ci -H bash -lc "cd '${GITHUB_WORKSPACE}' && bash ./scripts/install"
+          sudo -u ci -H bash -lc "cd '${GITHUB_WORKSPACE}' && bash ./package/install"
 
       - name: verify install
         shell: bash
@@ -118,7 +118,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo -u ci -H bash -lc "cd '${GITHUB_WORKSPACE}' && bash ./scripts/uninstall"
+          sudo -u ci -H bash -lc "cd '${GITHUB_WORKSPACE}' && bash ./package/uninstall"
 
       - name: verify uninstall
         shell: bash

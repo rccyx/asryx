@@ -23,10 +23,10 @@ jobs:
             ~/.local/opt/whisper.cpp
             ~/.local/share/asryx
             ~/.cache/ccache
-          key: ${{ runner.os }}-install-${{ hashFiles('scripts/install') }}-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ${{ runner.os }}-install-${{ hashFiles('package/install') }}-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            ${{ runner.os }}-install-${{ hashFiles('scripts/install') }}-${{ github.job }}-
-            ${{ runner.os }}-install-${{ hashFiles('scripts/install') }}-
+            ${{ runner.os }}-install-${{ hashFiles('package/install') }}-${{ github.job }}-
+            ${{ runner.os }}-install-${{ hashFiles('package/install') }}-
             ${{ runner.os }}-install-
 
       - name: install
@@ -36,7 +36,7 @@ jobs:
           CCACHE_DIR: /home/runner/.cache/ccache
           CCACHE_COMPRESS: "true"
           CCACHE_MAXSIZE: 1G
-        run: bash ./scripts/install
+        run: bash ./package/install
 
       - name: runtime safety
         run: just s

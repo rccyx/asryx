@@ -196,7 +196,7 @@ After a completed transcription, runtime files are completely removed. The trans
 
 ```bash
 git clone https://github.com/rccyx/asryx
-cd asryx && bash ./scripts/install
+cd asryx && bash ./package/install
 ```
 
 The installer validates the user environment, checks required tools, clones the pinned native inference source, builds the binary locally, installs the executable, writes the version pin, writes the default config, installs the VAD model, installs the default transcription model, selects it, and prints a PATH note when `~/.local/bin` is unavailable from the current shell.
@@ -595,7 +595,7 @@ Invalid model and language values are rejected before recording starts.
 ## Uninstallation
 
 ```bash
-./scripts/uninstall
+./package/uninstall
 ```
 
 Simply removes the owned files:

@@ -31,7 +31,7 @@ tidy_sources := "find src tests -type f \\( -name '*.cpp' -o -name '*.hpp' \\) -
 	cppcheck --enable=all --error-exitcode=1 --inline-suppr --suppress=checkersReport --suppress=missingInclude --suppress=normalCheckLevelMaxBranches --suppressions-list=cppcheck.suppressions --std=c++20 -I src -I tests -I . src tests
 
 @shellcheck:
-	shellcheck -x scripts/install scripts/uninstall scripts/lib/_common.sh scripts/lib/_deps.sh
+	shellcheck -x package/install package/uninstall package/lib/_common.sh package/lib/_deps.sh
 
 @build:
 	cmake --fresh --preset release
