@@ -21,7 +21,24 @@
       "displayName": "Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "ASRYX_BUILD_TESTS": "OFF"
+        "ASRYX_BUILD_TESTS": "OFF",
+        "ASRYX_BACKEND": "cpu"
+      }
+    },
+    {
+      "name": "release-cuda",
+      "inherits": "release",
+      "displayName": "Release CUDA",
+      "cacheVariables": {
+        "ASRYX_BACKEND": "cuda"
+      }
+    },
+    {
+      "name": "release-vulkan",
+      "inherits": "release",
+      "displayName": "Release Vulkan",
+      "cacheVariables": {
+        "ASRYX_BACKEND": "vulkan"
       }
     },
     {
@@ -56,6 +73,8 @@
   ],
   "buildPresets": [
     { "name": "release", "configurePreset": "release" },
+    { "name": "release-cuda", "configurePreset": "release-cuda" },
+    { "name": "release-vulkan", "configurePreset": "release-vulkan" },
     { "name": "test", "configurePreset": "test" },
     { "name": "asan", "configurePreset": "asan" },
     { "name": "ubsan", "configurePreset": "ubsan" }
