@@ -1,0 +1,83 @@
+name: build cuda
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build-cuda:
+    name: build cuda
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: base runner
+        uses: ./.github/actions/base-runner
+
+      - name: install cuda toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          keyring="${RUNNER_TEMP}/cuda-keyring.deb"
+
+          curl -fsSL \
+            "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb" \
+            -o "${keyring}"
+
+          sudo dpkg -i "${keyring}"
+          sudo apt-get update
+
+          sudo apt-get install -y --no-install-recommends \
+            cuda-compiler-12-8 \
+            cuda-libraries-dev-12-8
+
+          sudo rm -rf /var/lib/apt/lists/*
+
+          echo "/usr/local/cuda-12.8/bin" >>"${GITHUB_PATH}"
+          echo "CUDA_HOME=/usr/local/cuda-12.8" >>"${GITHUB_ENV}"
+          echo "CUDACXX=/usr/local/cuda-12.8/bin/nvcc" >>"${GITHUB_ENV}"
+          echo "CUDAToolkit_ROOT=/usr/local/cuda-12.8" >>"${GITHUB_ENV}"
+
+          # The standard runner has no NVIDIA GPU from which CMake can
+          # detect a native architecture. Compile for the Tesla T4
+          # architecture used by GitHub GPU larger runners.
+          echo "CUDAARCHS=75" >>"${GITHUB_ENV}"
+
+      - name: verify cuda compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          nvcc --version
+          test -x "${CUDACXX}"
+
+      - name: install cuda build
+        uses: ./.github/actions/project-install
+        with:
+          backend: cuda
+
+      - name: verify cuda build
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cache="${GITHUB_WORKSPACE}/build/release-cuda/CMakeCache.txt"
+          binary="${HOME}/.local/bin/asryx"
+
+          test -f "${cache}"
+          test -x "${binary}"
+
+          grep -Eq '^ASRYX_BACKEND:STRING=cuda$' "${cache}"
+          grep -Eq '^GGML_CUDA:BOOL=ON$' "${cache}"
+          grep -Eq '^GGML_VULKAN:BOOL=OFF$' "${cache}"
+          grep -Eq '^CMAKE_CUDA_COMPILER:FILEPATH=.*/nvcc$' "${cache}"
+          grep -Eq '^CMAKE_CUDA_ARCHITECTURES:STRING=75$' "${cache}"
+
+          "${binary}" status | grep -qx 'idle'
+          "${binary}" --model list >/dev/null

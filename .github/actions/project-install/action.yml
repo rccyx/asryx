@@ -7,21 +7,34 @@ inputs:
     description: install in dev mode
     default: "false"
 
+  backend:
+    description: inference backend
+    default: cpu
+
 runs:
   using: composite
+
   steps:
     - name: cache install artifacts
       uses: actions/cache@v4
       with:
         path: |
           ~/.local/opt/whisper.cpp
-          ${{ inputs.dev == 'true' && '~/.local/opt/libassert' || '' }}
+          ~/.local/opt/libassert
           ~/.local/share/asryx
           ~/.cache/ccache
-        key: ${{ runner.os }}-install-${{ hashFiles('package/install') }}-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+        key: >-
+          ${{ runner.os }}-install-${{ inputs.backend }}-${{ inputs.dev }}-${{
+          hashFiles(
+            'CMakeLists.txt',
+            'CMakePresets.json',
+            'package/install',
+            'package/lib/**',
+            'versions/**'
+          ) }}
         restore-keys: |
-          ${{ runner.os }}-install-${{ hashFiles('package/install') }}-${{ github.job }}-
-          ${{ runner.os }}-install-${{ hashFiles('package/install') }}-
+          ${{ runner.os }}-install-${{ inputs.backend }}-${{ inputs.dev }}-
+          ${{ runner.os }}-install-${{ inputs.backend }}-
           ${{ runner.os }}-install-
 
     - name: install
@@ -29,15 +42,32 @@ runs:
       env:
         CMAKE_C_COMPILER_LAUNCHER: ccache
         CMAKE_CXX_COMPILER_LAUNCHER: ccache
+        CMAKE_CUDA_COMPILER_LAUNCHER: ccache
         CCACHE_DIR: /home/runner/.cache/ccache
         CCACHE_COMPRESS: "true"
         CCACHE_MAXSIZE: 1G
       run: |
         set -euo pipefail
 
+        args=()
+
+        case "${{ inputs.backend }}" in
+          cpu)
+            ;;
+          cuda)
+            args+=(--cuda)
+            ;;
+          vulkan)
+            args+=(--vulkan)
+            ;;
+          *)
+            echo "unsupported backend: ${{ inputs.backend }}" >&2
+            exit 1
+            ;;
+        esac
+
         if [[ "${{ inputs.dev }}" == "true" ]]; then
-          bash ./package/install --dev
-          exit 0
+          args+=(--dev)
         fi
 
-        bash ./package/install
+        bash ./package/install "${args[@]}"

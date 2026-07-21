@@ -36,6 +36,18 @@ jobs:
       - format
     uses: ./.github/workflows/on-workflow-call-build.yml
 
+  build-vulkan:
+    needs:
+      - shellcheck
+      - format
+    uses: ./.github/workflows/on-workflow-call-build-vulkan.yml
+
+  build-cuda:
+    needs:
+      - shellcheck
+      - format
+    uses: ./.github/workflows/on-workflow-call-build-cuda.yml
+
   lint:
     needs: build
     uses: ./.github/workflows/on-workflow-call-lint.yml

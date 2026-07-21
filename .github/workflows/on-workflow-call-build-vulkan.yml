@@ -1,0 +1,92 @@
+name: build vulkan
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build-vulkan:
+    name: build vulkan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: base runner
+        uses: ./.github/actions/base-runner
+
+      - name: install vulkan toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libvulkan-dev \
+            mesa-vulkan-drivers \
+            vulkan-tools \
+            glslc \
+            spirv-headers
+
+          sudo rm -rf /var/lib/apt/lists/*
+
+      - name: select lavapipe
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          driver="$(
+            find /usr/share/vulkan/icd.d \
+              -maxdepth 1 \
+              -type f \
+              -name 'lvp_icd*.json' \
+              -print \
+              -quit
+          )"
+
+          if [[ -z "${driver}" ]]; then
+            echo "lavapipe driver manifest was not found" >&2
+            find /usr/share/vulkan/icd.d -maxdepth 1 -type f -print || true
+            exit 1
+          fi
+
+          echo "VK_DRIVER_FILES=${driver}" >>"${GITHUB_ENV}"
+          echo "using Vulkan driver: ${driver}"
+
+      - name: verify vulkan device
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          vulkaninfo --summary 2>&1 | tee "${RUNNER_TEMP}/vulkaninfo.log"
+
+          grep -Eiq \
+            'lavapipe|llvmpipe' \
+            "${RUNNER_TEMP}/vulkaninfo.log"
+
+      - name: install vulkan build
+        uses: ./.github/actions/project-install
+        with:
+          backend: vulkan
+
+      - name: verify vulkan build
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cache="${GITHUB_WORKSPACE}/build/release-vulkan/CMakeCache.txt"
+          binary="${HOME}/.local/bin/asryx"
+
+          test -f "${cache}"
+          test -x "${binary}"
+
+          grep -Eq '^ASRYX_BACKEND:STRING=vulkan$' "${cache}"
+          grep -Eq '^GGML_VULKAN:BOOL=ON$' "${cache}"
+          grep -Eq '^GGML_CUDA:BOOL=OFF$' "${cache}"
+
+          "${binary}" status | grep -qx 'idle'
+          "${binary}" --model list >/dev/null
