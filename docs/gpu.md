@@ -1,17 +1,5 @@
 # GPU builds
 
-This uses the CPU by default:
-
-GPU support is selected when the program is compiled.
-
-The selected build replaces the installed binary at:
-
-```text
-~/.local/bin/asryx
-```
-
-So you won't have to run the uninstaller, just install again, it will cache everything and build with the new flags.
-
 ## CUDA
 
 Install these packages:
