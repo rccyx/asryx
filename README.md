@@ -202,15 +202,11 @@ cd asryx
 
 The installer validates the user environment, checks required tools, clones the pinned native inference source, builds the binary locally, installs the executable, writes the version pin, writes the default config, installs the VAD model, installs the default transcription model, selects it, and prints a PATH note when `~/.local/bin` is unavailable from the current shell.
 
-Install variants:
+### GPU
 
-```bash
-./package/install
-./package/install --cuda
-./package/install --vulkan
-```
+This defaults to the CPU.
 
-No flag defaults to CPU. `--cuda` builds NVIDIA CUDA support. `--vulkan` builds the cross-vendor Vulkan backend.
+You want this to run on the GPU instead? See [GPU builds](./docs/gpu.md).
 
 > [!NOTE]
 > `main` is branch protected and force pushes are disabled. Anything merged into `main` builds and installs. if you want a versioned snapshot instead, see [releases](https://github.com/rccyx/asryx/releases).
@@ -278,22 +274,7 @@ ninja
 g++ or clang++
 ```
 
-CUDA builds require:
-
-```text
-A working NVIDIA driver.
-A compatible CUDA toolkit.
-nvcc available through PATH, or CUDACXX pointing to the CUDA compiler.
-```
-
-Vulkan builds require:
-
-```text
-A working Vulkan driver and loader.
-Vulkan development headers and loader library.
-glslc available through PATH or VULKAN_SDK/bin.
-SPIR-V headers required by the upstream GGML Vulkan build.
-```
+The default CPU build needs no CUDA or Vulkan packages. GPU builds need extra system packages; see [GPU builds](./docs/gpu.md).
 
 Runtime depends on your machine. For audio, check what you have:
 
