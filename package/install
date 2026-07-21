@@ -15,21 +15,57 @@ source "${script_dir}/lib/_deps.sh"
 export GIT_TERMINAL_PROMPT=0
 
 model_name="${ASRYX_DEFAULT_MODEL}"
+backend="cpu"
 install_dev=0
 whisper_url="https://github.com/ggerganov/whisper.cpp.git"
 whisper_dir="$(_asryx_home_path "${ASRYX_WHISPER_DIR_REL}")"
 libassert_url="https://github.com/jeremy-rifkin/libassert.git"
 libassert_dir="$(_asryx_home_path "${ASRYX_LIBASSERT_DIR_REL}")"
 
+select_backend() {
+  local requested="$1"
+
+  if [[ "${backend}" != "cpu" && "${backend}" != "${requested}" ]]; then
+    _asryx_die "CUDA and Vulkan backends cannot be selected together"
+  fi
+
+  backend="${requested}"
+}
+
 parse_args() {
   local arg=""
 
   for arg in "$@"; do
     case "${arg}" in
-      --dev) install_dev=1 ;;
+      --dev)
+        install_dev=1
+        ;;
+      --cuda)
+        select_backend "cuda"
+        ;;
+      --vulkan)
+        select_backend "vulkan"
+        ;;
       *) _asryx_die "unknown install option: ${arg}" ;;
     esac
   done
+}
+
+build_preset() {
+  case "${backend}" in
+    cpu)
+      printf '%s\n' "release"
+      ;;
+    cuda)
+      printf '%s\n' "release-cuda"
+      ;;
+    vulkan)
+      printf '%s\n' "release-vulkan"
+      ;;
+    *)
+      _asryx_die "internal error: unsupported backend ${backend}"
+      ;;
+  esac
 }
 
 read_whisper_sha() {
@@ -107,15 +143,18 @@ install_libassert() {
 }
 
 build_asryx() {
-  _asryx_log "configuring asryx"
-  cmake --fresh --preset release -S "${repo_dir}"
+  local preset="$1"
 
-  _asryx_log "building asryx"
-  cmake --build "${repo_dir}/build/release" --target asryx
+  _asryx_log "configuring asryx (${backend})"
+  cmake --fresh --preset "${preset}" -S "${repo_dir}"
+
+  _asryx_log "building asryx (${backend})"
+  cmake --build "${repo_dir}/build/${preset}" --target asryx
 }
 
 install_asryx_binary() {
-  local src_bin="${repo_dir}/build/release/asryx"
+  local preset="$1"
+  local src_bin="${repo_dir}/build/${preset}/asryx"
   local dst_bin=""
   dst_bin="$(_asryx_home_path "${ASRYX_ASRYX_BIN_REL}")"
 
@@ -209,10 +248,11 @@ main() {
   parse_args "$@"
   _asryx_require_home
 
+  _asryx_require_runtime_dependencies
+  _asryx_require_backend_dependencies "${backend}"
+
   if [[ "${install_dev}" -eq 1 ]]; then
     _asryx_require_dev_dependencies
-  else
-    _asryx_require_runtime_dependencies
   fi
 
   local whisper_sha=""
@@ -229,8 +269,11 @@ main() {
     install_libassert "${libassert_sha}"
   fi
 
-  build_asryx
-  install_asryx_binary
+  local preset=""
+  preset="$(build_preset)"
+
+  build_asryx "${preset}"
+  install_asryx_binary "${preset}"
   write_installed_whisper_pin "${whisper_sha}"
   write_default_config_if_missing
   install_vad_model

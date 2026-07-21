@@ -52,6 +52,25 @@ _asryx_require_clipboard_backend() {
   _asryx_require_one_command "clipboard backend" wl-copy xclip
 }
 
+_asryx_require_cuda_dependencies() {
+  if [[ -n "${CUDACXX:-}" ]]; then
+    if [[ ! -x "${CUDACXX}" ]]; then
+      _asryx_mark_missing "CUDA compiler: ${CUDACXX}"
+    fi
+    return 0
+  fi
+
+  _asryx_require_command nvcc
+}
+
+_asryx_require_vulkan_dependencies() {
+  if [[ -n "${VULKAN_SDK:-}" && -x "${VULKAN_SDK}/bin/glslc" ]]; then
+    return 0
+  fi
+
+  _asryx_require_command glslc
+}
+
 _asryx_fail_if_missing_tools() {
   local tool=""
 
@@ -69,7 +88,7 @@ _asryx_fail_if_missing_tools() {
   exit 1
 }
 
-_asryx_require_runtime_dependencies() {
+_asryx_require_runtime_dependency_tools() {
   _asryx_require_command git
   _asryx_require_command cmake
   _asryx_require_command ninja
@@ -82,10 +101,26 @@ _asryx_require_runtime_dependencies() {
   _asryx_require_audio_backend
   _asryx_require_clipboard_backend
   _asryx_require_command notify-send
+}
+
+_asryx_require_runtime_dependencies() {
+  _asryx_require_runtime_dependency_tools
+  _asryx_fail_if_missing_tools
+}
+
+_asryx_require_backend_dependencies() {
+  local backend="$1"
+
+  case "${backend}" in
+    cpu) ;;
+    cuda) _asryx_require_cuda_dependencies ;;
+    vulkan) _asryx_require_vulkan_dependencies ;;
+    *) _asryx_mark_missing "unsupported backend: ${backend}" ;;
+  esac
 
   _asryx_fail_if_missing_tools
 }
 
 _asryx_require_dev_dependencies() {
-  _asryx_require_runtime_dependencies
+  _asryx_fail_if_missing_tools
 }
