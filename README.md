@@ -200,7 +200,7 @@ cd asryx
 bash ./package/install
 ```
 
-> ![TIP]
+> [!TIP]
 > If you've changed your mind, see the [uninstaller](#uninstallation).
 
 ### CPU
