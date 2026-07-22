@@ -59,8 +59,12 @@ set(WHISPER_FFMPEG OFF CACHE BOOL "" FORCE)
 
 if(ASRYX_BACKEND STREQUAL "cuda")
   set(GGML_CUDA ON CACHE BOOL "" FORCE)
+  set(ASRYX_BACKEND_DEFINITION ASRYX_BACKEND_CUDA=1)
 elseif(ASRYX_BACKEND STREQUAL "vulkan")
   set(GGML_VULKAN ON CACHE BOOL "" FORCE)
+  set(ASRYX_BACKEND_DEFINITION ASRYX_BACKEND_VULKAN=1)
+else()
+  set(ASRYX_BACKEND_DEFINITION ASRYX_BACKEND_CPU=1)
 endif()
 
 message(STATUS "Asryx backend: ${ASRYX_BACKEND}")
@@ -72,7 +76,10 @@ file(GLOB_RECURSE ASRYX_HEADERS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/*.h
 
 add_executable(asryx ${ASRYX_SOURCES} ${ASRYX_HEADERS})
 target_include_directories(asryx PRIVATE "${PROJECT_SOURCE_DIR}/src")
-target_compile_definitions(asryx PRIVATE ASRYX_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(
+  asryx
+  PRIVATE ASRYX_SOURCE_DIR="${PROJECT_SOURCE_DIR}" ${ASRYX_BACKEND_DEFINITION}
+)
 target_link_libraries(asryx PRIVATE whisper)
 
 asryx_enable_warnings(asryx)

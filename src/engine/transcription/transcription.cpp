@@ -2,13 +2,12 @@
 
 #include "constants/constants.hpp"
 #include "engine/audio/audio.hpp"
+#include "engine/transcription/compute.hpp"
 
-#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <thread>
 #include <vector>
 
 #ifdef __GNUC__
@@ -49,16 +48,6 @@ void _validate_request(const TranscriptionRequest& request)
   }
 }
 
-int _thread_count()
-{
-  const auto detected = std::thread::hardware_concurrency();
-  if (detected == 0) {
-    return 4; // TODO: this ain't it chief!
-  }
-
-  return static_cast<int>(std::min(4U, detected));
-}
-
 const char* _language(whisper_context* ctx, const std::string& language)
 {
   if (whisper_is_multilingual(ctx) == 0) {
@@ -83,9 +72,24 @@ bool _abort_requested(void* user_data)
   return !marker_path->empty() && std::filesystem::exists(*marker_path);
 }
 
+whisper_context_params _context_params()
+{
+  whisper_context_params params = whisper_context_default_params();
+
+  if constexpr (compute::kCompiledBackend == compute::CompiledBackend::Cpu) {
+    params.use_gpu = false;
+  }
+  else {
+    params.use_gpu = true;
+    params.gpu_device = 0;
+  }
+
+  return params;
+}
+
 WhisperContext _load_context(const std::string& model_path)
 {
-  whisper_context_params context_params = whisper_context_default_params();
+  const auto context_params = _context_params();
   WhisperContext ctx(whisper_init_from_file_with_params(model_path.c_str(), context_params));
   if (ctx == nullptr) {
     throw std::runtime_error("failed to initialize whisper model: " + model_path);
@@ -103,7 +107,7 @@ whisper_full_params _params(whisper_context* ctx, TranscriptionRequest& request)
   params.greedy.best_of = 1;
   params.no_context = false;
 
-  params.n_threads = _thread_count();
+  params.n_threads = compute::resolve_threads();
   params.print_progress = false;
   params.print_realtime = false;
   params.print_timestamps = false;
