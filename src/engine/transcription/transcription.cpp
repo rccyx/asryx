@@ -104,8 +104,10 @@ whisper_full_params _params(whisper_context* ctx, TranscriptionRequest& request)
 
   params.temperature = 0.0F;
   params.temperature_inc = 0.2F;
-  params.greedy.best_of = 1;
-  params.no_context = false;
+
+  params.greedy.best_of = 5;
+  params.no_context = true;
+
 
   params.n_threads = compute::resolve_threads();
   params.print_progress = false;
