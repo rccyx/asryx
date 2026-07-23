@@ -108,7 +108,6 @@ whisper_full_params _params(whisper_context* ctx, TranscriptionRequest& request)
   params.greedy.best_of = 5;
   params.no_context = true;
 
-
   params.n_threads = compute::resolve_threads();
   params.print_progress = false;
   params.print_realtime = false;
