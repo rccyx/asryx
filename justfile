@@ -31,7 +31,7 @@ tidy_sources := "find src tests -type f \\( -name '*.cpp' -o -name '*.hpp' \\) -
 	cmake --fresh --preset test
 	find src -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 | xargs -0 -r clang-tidy --config-file=.clang-tidy -p build/release
 	find tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 | xargs -0 -r clang-tidy --config-file=.clang-tidy -p build/test
-	cppcheck --enable=all --error-exitcode=1 --inline-suppr --suppress=checkersReport --suppress=missingInclude --suppress=normalCheckLevelMaxBranches --suppressions-list=cppcheck.suppressions --std=c++20 -I src -I tests -I . src tests
+	cppcheck --enable=all --error-exitcode=1 --inline-suppr --suppress=checkersReport --suppress=missingInclude --suppress=normalCheckLevelMaxBranches --suppressions-list=cppcheck.suppressions --std=c++23 -I src -I tests -I . src tests
 
 @shellcheck:
 	shellcheck -x package/install package/uninstall package/lib/_common.sh package/lib/_deps.sh
