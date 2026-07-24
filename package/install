@@ -17,7 +17,7 @@ export GIT_TERMINAL_PROMPT=0
 model_name="${ASRYX_DEFAULT_MODEL}"
 backend="cpu"
 install_dev=0
-whisper_url="https://github.com/ggerganov/whisper.cpp.git"
+whisper_url="https://github.com/ggml-org/whisper.cpp.git"
 whisper_dir="$(_asryx_home_path "${ASRYX_WHISPER_DIR_REL}")"
 libassert_url="https://github.com/jeremy-rifkin/libassert.git"
 libassert_dir="$(_asryx_home_path "${ASRYX_LIBASSERT_DIR_REL}")"
@@ -83,24 +83,35 @@ read_libassert_sha() {
 sync_whisper_repo() {
   local whisper_sha="$1"
 
+  [[ "${whisper_sha}" =~ ^[0-9a-f]{40}$ ]] ||
+    _asryx_die "invalid whisper.cpp pin: ${whisper_sha}"
+
   _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_LOCAL_OPT_DIR_REL}")"
 
   if [[ -d "${whisper_dir}/.git" ]]; then
     _asryx_log "updating whisper.cpp"
-    git -C "${whisper_dir}" fetch --depth 1 origin "${whisper_sha}"
+    git -C "${whisper_dir}" remote set-url origin "${whisper_url}"
   else
     if [[ -e "${whisper_dir}" ]]; then
       _asryx_die "${whisper_dir} exists but is not a git checkout"
     fi
 
     _asryx_log "cloning whisper.cpp"
-    git clone "${whisper_url}" "${whisper_dir}"
-    git -C "${whisper_dir}" fetch --depth 1 origin "${whisper_sha}"
+    git clone --no-checkout "${whisper_url}" "${whisper_dir}"
   fi
 
-  git -C "${whisper_dir}" checkout --detach "${whisper_sha}"
-  git -C "${whisper_dir}" fsck --no-progress
+  git -C "${whisper_dir}" fetch --depth 1 origin "${whisper_sha}"
+  git -C "${whisper_dir}" checkout --force --detach "${whisper_sha}"
+  git -C "${whisper_dir}" reset --hard "${whisper_sha}"
+  git -C "${whisper_dir}" submodule sync --recursive
   git -C "${whisper_dir}" submodule update --init --recursive
+
+  local installed_sha=""
+  installed_sha="$(git -C "${whisper_dir}" rev-parse HEAD)"
+  [[ "${installed_sha}" == "${whisper_sha}" ]] ||
+    _asryx_die "whisper.cpp checkout mismatch: expected ${whisper_sha}, got ${installed_sha}"
+
+  git -C "${whisper_dir}" fsck --no-progress
 }
 
 sync_libassert_repo() {
@@ -282,3 +293,4 @@ main() {
 }
 
 main "$@"
+
