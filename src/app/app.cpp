@@ -5,7 +5,6 @@
 #include "runtime/runtime.hpp"
 
 #include <iostream>
-#include <stdexcept>
 #include <vector>
 
 namespace app {
@@ -28,91 +27,80 @@ void _print_usage()
             << "  asryx --model uninstall <name>  Uninstall a model\n";
 }
 
-void _set_pipe_to(const std::string& command)
+std::expected<void, asryx::Error> _set_pipe_to(const std::string& command)
 {
   if (command.empty()) {
-    throw std::runtime_error("--pipe-to requires a non-empty command string");
+    return asryx::fail("--pipe-to requires a non-empty command string");
   }
 
-  auto config = config::load_config();
-  config.pipe_to = command;
-  config::save_config(config);
+  return config::load_config().and_then([&command](config::Config config) {
+    config.pipe_to = command;
+    return config::save_config(config);
+  });
 }
 
-void _clear_pipe_to()
+std::expected<void, asryx::Error> _clear_pipe_to()
 {
-  auto config = config::load_config();
-  config.pipe_to.clear();
-  config::save_config(config);
+  return config::load_config().and_then([](config::Config config) {
+    config.pipe_to.clear();
+    return config::save_config(config);
+  });
 }
 
 } // namespace
 
-int run(const std::vector<std::string>& args)
+std::expected<int, asryx::Error> run(const std::vector<std::string>& args)
 {
-  try {
-    if (args.empty()) {
-      runtime::toggle();
-      return 0;
-    }
-
-    if (args.size() == 1 && args[0] == "cancel") {
-      runtime::cancel();
-      return 0;
-    }
-
-    if (args.size() == 1 && args[0] == "status") {
-      std::cout << runtime::get_status() << "\n";
-      return 0;
-    }
-
-    if (args.size() == 2 && args[0] == "--pipe-to") {
-      _set_pipe_to(args[1]);
-      return 0;
-    }
-
-    if (args.size() == 1 && args[0] == "--no-pipe") {
-      _clear_pipe_to();
-      return 0;
-    }
-
-    if (args.size() == 2 && args[0] == "--model") {
-      if (args[1] == "list") {
-        model::list_models();
-        return 0;
-      }
-    }
-
-    if (args.size() == 2 && args[0] == "--language") {
-      model::use_language(args[1]);
-      return 0;
-    }
-
-    if (args.size() == 3 && args[0] == "--model") {
-      if (args[1] == "install") {
-        model::install_model(args[2]);
-        return 0;
-      }
-
-      if (args[1] == "use") {
-        model::use_model(args[2]);
-        return 0;
-      }
-
-      if (args[1] == "uninstall") {
-        model::uninstall_model(args[2]);
-        return 0;
-      }
-    }
-
-    std::cerr << "error: invalid arguments\n\n";
-    _print_usage();
-    return 1;
+  if (args.empty()) {
+    return runtime::toggle().transform([] { return 0; });
   }
-  catch (const std::exception& e) {
-    std::cerr << "error: " << e.what() << "\n";
-    return 1;
+
+  if (args.size() == 1 && args[0] == "cancel") {
+    return runtime::cancel().transform([] { return 0; });
   }
+
+  if (args.size() == 1 && args[0] == "status") {
+    return runtime::get_status().transform([](const std::string& status) {
+      std::cout << status << "\n";
+      return 0;
+    });
+  }
+
+  if (args.size() == 2 && args[0] == "--pipe-to") {
+    return _set_pipe_to(args[1]).transform([] { return 0; });
+  }
+
+  if (args.size() == 1 && args[0] == "--no-pipe") {
+    return _clear_pipe_to().transform([] { return 0; });
+  }
+
+  if (args.size() == 2 && args[0] == "--model") {
+    if (args[1] == "list") {
+      return model::list_models().transform([] { return 0; });
+    }
+  }
+
+  if (args.size() == 2 && args[0] == "--language") {
+    return model::use_language(args[1]).transform([] { return 0; });
+  }
+
+  if (args.size() == 3 && args[0] == "--model") {
+    if (args[1] == "install") {
+      return model::install_model(args[2]).transform([] { return 0; });
+    }
+
+    if (args[1] == "use") {
+      return model::use_model(args[2]).transform([] { return 0; });
+    }
+
+    if (args[1] == "uninstall") {
+      return model::uninstall_model(args[2]).transform([] { return 0; });
+    }
+  }
+
+  std::cerr << "error: invalid arguments\n\n";
+  _print_usage();
+  return 1;
 }
 
 } // namespace app

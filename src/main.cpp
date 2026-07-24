@@ -1,5 +1,6 @@
 #include "app/app.hpp"
 
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -12,5 +13,11 @@ int main(int argc, char* argv[])
   for (int i = 1; i < argc; ++i) {
     args.emplace_back(argv[i]);
   }
-  return app::run(args);
+  const auto result = app::run(args);
+  if (!result) {
+    std::cerr << "error: " << result.error().message << "\n";
+    return 1;
+  }
+
+  return *result;
 }
