@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <memory>
 #include <string>
-#include <vector>
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic push
@@ -92,6 +91,7 @@ std::expected<WhisperContext, asryx::Error> _load_context(const std::string& mod
 {
   const auto context_params = _context_params();
   WhisperContext ctx(whisper_init_from_file_with_params(model_path.c_str(), context_params));
+
   if (ctx == nullptr) {
     return asryx::fail("failed to initialize whisper model: " + model_path);
   }
@@ -114,13 +114,18 @@ whisper_full_params _params(whisper_context* ctx, TranscriptionRequest& request)
   params.print_realtime = false;
   params.print_timestamps = false;
   params.no_timestamps = true;
+
   params.suppress_blank = true;
-  params.suppress_nst = true;
+
+  params.suppress_nst = false;
+
   params.language = _language(ctx, request.language);
   params.detect_language = false;
+
   params.vad = true;
   params.vad_model_path = request.vad_model_path.c_str();
   params.vad_params = whisper_vad_default_params();
+
   params.abort_callback = _abort_requested;
   params.abort_callback_user_data = &request.cancel_marker_path;
 
@@ -134,6 +139,7 @@ std::string _read_output(whisper_context* ctx)
 
   for (int i = 0; i < segments; ++i) {
     const char* const text = whisper_full_get_segment_text(ctx, i);
+
     if (text != nullptr) {
       output += text;
     }
