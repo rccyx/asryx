@@ -1,6 +1,7 @@
 #include "app/app.hpp"
 #include "config/config.hpp"
 #include "constants/constants.hpp"
+#include "error.hpp"
 #include "platform/fs.hpp"
 #include "platform/process.hpp"
 #include "runtime/runtime.hpp"
@@ -25,11 +26,16 @@ std::filesystem::path runtime_file(const std::string& name)
 
 void clean_runtime_files()
 {
-  platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_pid_file)));
-  platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_wav_file)));
-  platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_error_file)));
-  platform::safe_delete_file(runtime_file(std::string(constants::runtime::cancel_marker_file)));
-  platform::safe_delete_file(runtime_file(std::string(constants::runtime::state_file)));
+  asryx::ignore_failure(
+      platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_pid_file))));
+  asryx::ignore_failure(
+      platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_wav_file))));
+  asryx::ignore_failure(platform::safe_delete_file(
+      runtime_file(std::string(constants::runtime::recorder_error_file))));
+  asryx::ignore_failure(platform::safe_delete_file(
+      runtime_file(std::string(constants::runtime::cancel_marker_file))));
+  asryx::ignore_failure(
+      platform::safe_delete_file(runtime_file(std::string(constants::runtime::state_file))));
 }
 
 bool recording_files_exist()
@@ -45,14 +51,19 @@ void reset_config()
 {
   config::Config cfg;
   cfg.language = std::string(constants::config::english_language);
-  config::save_config(cfg);
+  ASSERT(config::save_config(cfg).has_value());
 }
 
 void assert_control_command_does_not_record(const std::vector<std::string>& args)
 {
   clean_runtime_files();
-  ASSERT(app::run(args) == 0);
-  ASSERT(runtime::get_status() == std::string(constants::runtime::idle_state));
+  const auto exit_code = app::run(args);
+  ASSERT(exit_code.has_value());
+  ASSERT(*exit_code == 0);
+
+  const auto status = runtime::get_status();
+  ASSERT(status.has_value());
+  ASSERT(*status == std::string(constants::runtime::idle_state));
   ASSERT(!recording_files_exist());
 }
 
@@ -71,8 +82,8 @@ void stop_started_recording()
 
   if (pid > 0) {
     if (pid != getpid()) {
-      platform::stop_process(pid);
-      platform::wait_process(pid);
+      asryx::ignore_failure(platform::stop_process(pid));
+      asryx::ignore_failure(platform::wait_process(pid));
     }
   }
 
@@ -87,8 +98,13 @@ void run_test_app()
   reset_config();
   clean_runtime_files();
 
-  ASSERT(app::run({}) == 0);
-  ASSERT(runtime::get_status() == std::string(constants::runtime::recording_state));
+  auto exit_code = app::run({});
+  ASSERT(exit_code.has_value());
+  ASSERT(*exit_code == 0);
+
+  auto status = runtime::get_status();
+  ASSERT(status.has_value());
+  ASSERT(*status == std::string(constants::runtime::recording_state));
   ASSERT(recording_files_exist());
   stop_started_recording();
 
@@ -104,20 +120,34 @@ void run_test_app()
   };
   assert_control_commands_do_not_record(control_commands);
 
-  auto cfg = config::load_config();
+  auto loaded_config = config::load_config();
+  ASSERT(loaded_config.has_value());
+  auto cfg = *loaded_config;
   ASSERT(cfg.pipe_to == std::string("tee -a ~/x.txt"));
 
   assert_control_command_does_not_record({"--no-pipe"});
-  cfg = config::load_config();
+  loaded_config = config::load_config();
+  ASSERT(loaded_config.has_value());
+  cfg = *loaded_config;
   ASSERT(cfg.pipe_to == std::string(""));
 
   clean_runtime_files();
-  ASSERT(app::run({"--output", "clipboard"}) == 1);
-  ASSERT(runtime::get_status() == std::string(constants::runtime::idle_state));
+  exit_code = app::run({"--output", "clipboard"});
+  ASSERT(exit_code.has_value());
+  ASSERT(*exit_code == 1);
+
+  status = runtime::get_status();
+  ASSERT(status.has_value());
+  ASSERT(*status == std::string(constants::runtime::idle_state));
   ASSERT(!recording_files_exist());
 
-  ASSERT(app::run({"--output", "exec", "--pipe-to", "tee -a ~/x.txt"}) == 1);
-  ASSERT(runtime::get_status() == std::string(constants::runtime::idle_state));
+  exit_code = app::run({"--output", "exec", "--pipe-to", "tee -a ~/x.txt"});
+  ASSERT(exit_code.has_value());
+  ASSERT(*exit_code == 1);
+
+  status = runtime::get_status();
+  ASSERT(status.has_value());
+  ASSERT(*status == std::string(constants::runtime::idle_state));
   ASSERT(!recording_files_exist());
 
   model_store::delete_default_model_and_vad();

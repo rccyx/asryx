@@ -8,23 +8,6 @@
 #include <filesystem>
 #include <iostream>
 #include <libassert/assert.hpp>
-#include <stdexcept>
-
-namespace {
-
-template <typename Fn> bool runtime_error_equals(Fn fn, const std::string& expected)
-{
-  try {
-    fn();
-  }
-  catch (const std::runtime_error& e) {
-    return std::string(e.what()) == expected;
-  }
-
-  return false;
-}
-
-} // namespace
 
 void run_test_model()
 {
@@ -40,71 +23,109 @@ void run_test_model()
   ASSERT(model::is_supported_language(std::string(constants::config::auto_language)));
   ASSERT(!model::is_supported_language("jrnfejfef"));
 
-  std::string path = model::get_model_path(std::string(constants::config::default_model));
+  const auto default_model_path =
+      model::get_model_path(std::string(constants::config::default_model));
+  ASSERT(default_model_path.has_value());
+  const std::string& path = *default_model_path;
   ASSERT(!path.empty());
-  ASSERT(!model::get_vad_model_path().empty());
-  ASSERT(!model::is_vad_model_installed());
-  ASSERT(runtime_error_equals([] { model::validate_vad_model(); },
-                              "VAD model is not installed: " + model::get_vad_model_path()));
 
-  ASSERT(!model::is_model_installed(std::string(constants::config::default_model)));
-  ASSERT(runtime_error_equals(
-      [] { model::use_model(std::string(constants::config::default_model)); },
-      "model 'base.en' is not installed. Install it with: asryx --model install base.en"));
+  const auto vad_model_path = model::get_vad_model_path();
+  ASSERT(vad_model_path.has_value());
+  ASSERT(!vad_model_path->empty());
+
+  const auto vad_installed = model::is_vad_model_installed();
+  ASSERT(vad_installed.has_value());
+  ASSERT(!*vad_installed);
+
+  const auto missing_vad = model::validate_vad_model();
+  ASSERT(!missing_vad.has_value());
+  ASSERT(missing_vad.error().message == "VAD model is not installed: " + *vad_model_path);
+
+  const auto default_model_installed =
+      model::is_model_installed(std::string(constants::config::default_model));
+  ASSERT(default_model_installed.has_value());
+  ASSERT(!*default_model_installed);
+
+  const auto missing_model = model::use_model(std::string(constants::config::default_model));
+  ASSERT(!missing_model.has_value());
+  ASSERT(missing_model.error().message ==
+         "model 'base.en' is not installed. Install it with: asryx --model install base.en");
 
   model_store::write_model(std::string(constants::config::default_model));
-  model::use_model(std::string(constants::config::default_model));
-  model::use_language(std::string(constants::config::english_language));
+  ASSERT(model::use_model(std::string(constants::config::default_model)).has_value());
+  ASSERT(model::use_language(std::string(constants::config::english_language)).has_value());
 
-  auto cfg = config::load_config();
+  auto loaded_config = config::load_config();
+  ASSERT(loaded_config.has_value());
+  auto cfg = *loaded_config;
   ASSERT(cfg.model == std::string(constants::config::default_model));
   ASSERT(cfg.language == std::string(constants::config::english_language));
-  ASSERT(model::transcription_language_for(cfg) ==
-         std::string(constants::config::english_language));
 
-  ASSERT(runtime_error_equals([] { model::use_language("jrnfejfef"); },
-                              "unsupported language: jrnfejfef"));
-  cfg = config::load_config();
+  auto language = model::transcription_language_for(cfg);
+  ASSERT(language.has_value());
+  ASSERT(*language == std::string(constants::config::english_language));
+
+  const auto invalid_language = model::use_language("jrnfejfef");
+  ASSERT(!invalid_language.has_value());
+  ASSERT(invalid_language.error().message == "unsupported language: jrnfejfef");
+
+  loaded_config = config::load_config();
+  ASSERT(loaded_config.has_value());
+  cfg = *loaded_config;
   ASSERT(cfg.language == std::string(constants::config::english_language));
 
-  ASSERT(runtime_error_equals(
-      [] { model::use_language("fr"); },
-      "active model base.en is English-only; use a multilingual model for fr"));
-  cfg = config::load_config();
+  const auto english_only_language = model::use_language("fr");
+  ASSERT(!english_only_language.has_value());
+  ASSERT(english_only_language.error().message ==
+         "active model base.en is English-only; use a multilingual model for fr");
+
+  loaded_config = config::load_config();
+  ASSERT(loaded_config.has_value());
+  cfg = *loaded_config;
   ASSERT(cfg.language == std::string(constants::config::english_language));
 
   model_store::write_model("base");
-  model::use_model("base");
-  model::use_language("fr");
-  cfg = config::load_config();
-  ASSERT(cfg.model == std::string("base"));
-  ASSERT(cfg.language == std::string("fr"));
-  ASSERT(model::transcription_language_for(cfg) == std::string("fr"));
+  ASSERT(model::use_model("base").has_value());
+  ASSERT(model::use_language("fr").has_value());
 
-  ASSERT(runtime_error_equals(
-      [] { model::use_model(std::string(constants::config::default_model)); },
-      "active model base.en is English-only; use a multilingual model for fr"));
-  cfg = config::load_config();
+  loaded_config = config::load_config();
+  ASSERT(loaded_config.has_value());
+  cfg = *loaded_config;
   ASSERT(cfg.model == std::string("base"));
   ASSERT(cfg.language == std::string("fr"));
 
-  model::use_language(std::string(constants::config::auto_language));
-  cfg = config::load_config();
-  ASSERT(model::transcription_language_for(cfg) == std::string(""));
+  language = model::transcription_language_for(cfg);
+  ASSERT(language.has_value());
+  ASSERT(*language == std::string("fr"));
 
-  model::use_model(std::string(constants::config::default_model));
+  const auto english_only_model = model::use_model(std::string(constants::config::default_model));
+  ASSERT(!english_only_model.has_value());
+  ASSERT(english_only_model.error().message ==
+         "active model base.en is English-only; use a multilingual model for fr");
 
-  bool active_uninstall_rejected = false;
-  try {
-    model::uninstall_model(std::string(constants::config::default_model));
-  }
-  catch (const std::runtime_error& e) {
-    active_uninstall_rejected =
-        std::string(e.what()) ==
-        "cannot uninstall active model 'base.en'; switch models first with: asryx --model use "
-        "<other>";
-  }
-  ASSERT(active_uninstall_rejected);
+  loaded_config = config::load_config();
+  ASSERT(loaded_config.has_value());
+  cfg = *loaded_config;
+  ASSERT(cfg.model == std::string("base"));
+  ASSERT(cfg.language == std::string("fr"));
+
+  ASSERT(model::use_language(std::string(constants::config::auto_language)).has_value());
+
+  loaded_config = config::load_config();
+  ASSERT(loaded_config.has_value());
+  cfg = *loaded_config;
+  language = model::transcription_language_for(cfg);
+  ASSERT(language.has_value());
+  ASSERT(*language == std::string(""));
+
+  ASSERT(model::use_model(std::string(constants::config::default_model)).has_value());
+
+  const auto active_uninstall =
+      model::uninstall_model(std::string(constants::config::default_model));
+  ASSERT(!active_uninstall.has_value());
+  ASSERT(active_uninstall.error().message ==
+         "cannot uninstall active model 'base.en'; switch models first with: asryx --model use "
+         "<other>");
   ASSERT(std::filesystem::exists(path));
 
   std::cout << "test_model passed\n";
