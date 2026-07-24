@@ -2,13 +2,13 @@
 
 #include "config/config.hpp"
 #include "constants/constants.hpp"
+#include "model/store.hpp"
 #include "platform/fs.hpp"
 #include "platform/process.hpp"
 
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -23,126 +23,68 @@ bool _is_supported_model_name(const std::string& name)
          supported_models.end();
 }
 
-std::filesystem::path _model_dir()
+std::expected<void, asryx::Error> _run_whisper_model_downloader(const std::string& name)
 {
-  return platform::get_home_relative_path(std::string(constants::paths::data_dir_rel));
-}
-
-std::filesystem::path _vad_model_path()
-{
-  return _model_dir() / std::string(constants::paths::VAD_MODEL_FILE);
-}
-
-std::filesystem::path _whisper_source_dir()
-{
-  return platform::get_home_relative_path(std::string(constants::paths::whisper_checkout_rel));
-}
-
-std::filesystem::path _whisper_model_path(const std::string& name)
-{
-  return _whisper_source_dir() / "models" / ("ggml-" + name + ".bin");
-}
-
-std::filesystem::path _whisper_model_downloader()
-{
-  return _whisper_source_dir() / "models/download-ggml-model.sh";
-}
-
-bool _file_exists_nonempty(const std::filesystem::path& path)
-{
-  return std::filesystem::exists(path) && std::filesystem::is_regular_file(path) &&
-         !std::filesystem::is_empty(path);
-}
-
-void _copy_model_into_store(const std::filesystem::path& source,
-                            const std::filesystem::path& target)
-{
-  if (!_file_exists_nonempty(source)) {
-    throw std::runtime_error("download did not produce model: " + source.string());
+  const auto source_dir = store::whisper_source_dir();
+  if (!source_dir) {
+    return std::unexpected(source_dir.error());
   }
 
-  std::filesystem::create_directories(target.parent_path());
-
-  const auto tmp = target.parent_path() / ("." + target.filename().string() + ".tmp");
-
-  try {
-    std::filesystem::copy_file(source, tmp, std::filesystem::copy_options::overwrite_existing);
-    std::filesystem::rename(tmp, target);
-  }
-  catch (...) {
-    if (std::filesystem::exists(tmp)) {
-      platform::safe_delete_file(tmp);
-    }
-    throw;
-  }
-}
-
-void _run_whisper_model_downloader(const std::string& name)
-{
-  const auto source_dir = _whisper_source_dir();
-  const auto downloader = _whisper_model_downloader();
-
-  if (!std::filesystem::exists(source_dir / ".git")) {
-    throw std::runtime_error("missing whisper.cpp checkout: " + source_dir.string() +
-                             ". Run ./package/install first.");
+  const auto downloader = store::whisper_model_downloader();
+  if (!downloader) {
+    return std::unexpected(downloader.error());
   }
 
-  if (!std::filesystem::exists(downloader)) {
-    throw std::runtime_error("missing whisper.cpp model downloader: " + downloader.string());
+  if (!std::filesystem::exists(*source_dir / ".git")) {
+    return asryx::fail("missing whisper.cpp checkout: " + source_dir->string() +
+                       ". Run ./package/install first.");
+  }
+
+  if (!std::filesystem::exists(*downloader)) {
+    return asryx::fail("missing whisper.cpp model downloader: " + downloader->string());
   }
 
   std::cout << "Downloading model " << name << " via whisper.cpp downloader...\n";
 
   const std::string script = R"(cd "$1" && bash ./models/download-ggml-model.sh "$2")";
-  const bool success = platform::run_process_blocking(
-      {"bash", "-c", script, "asryx-model-download", source_dir.string(), name});
-
+  const auto success = platform::run_process_blocking(
+      {"bash", "-c", script, "asryx-model-download", source_dir->string(), name});
   if (!success) {
-    throw std::runtime_error("failed to download model " + name);
+    return std::unexpected(success.error());
   }
+
+  if (!*success) {
+    return asryx::fail("failed to download model " + name);
+  }
+
+  return {};
 }
 
 } // namespace
 
-const std::vector<std::string>& get_supported_models()
+std::expected<std::string, asryx::Error> get_model_path(const std::string& name)
 {
-  static const std::vector<std::string> models = {
-      "tiny.en", "tiny",     "base.en",  "base",     "small.en",       "small", "medium.en",
-      "medium",  "large-v1", "large-v2", "large-v3", "large-v3-turbo", "large"};
-  return models;
+  return store::model_dir().transform([&name](const std::filesystem::path& model_dir) {
+    return (model_dir / ("ggml-" + name + ".bin")).string();
+  });
 }
 
-const std::vector<std::string>& get_supported_languages()
+std::expected<std::string, asryx::Error> get_vad_model_path()
 {
-  static const std::vector<std::string> languages = {
-      "en", "zh", "de", "es",  "ru", "ko", "fr", "ja", "pt", "tr", "pl", "ca", "nl", "ar", "sv",
-      "it", "id", "hi", "fi",  "vi", "he", "uk", "el", "ms", "cs", "ro", "da", "hu", "ta", "no",
-      "th", "ur", "hr", "bg",  "lt", "la", "mi", "ml", "cy", "sk", "te", "fa", "lv", "bn", "sr",
-      "az", "sl", "kn", "et",  "mk", "br", "eu", "is", "hy", "ne", "mn", "bs", "kk", "sq", "sw",
-      "gl", "mr", "pa", "si",  "km", "sn", "yo", "so", "af", "oc", "ka", "be", "tg", "sd", "gu",
-      "am", "yi", "lo", "uz",  "fo", "ht", "ps", "tk", "nn", "mt", "sa", "lb", "my", "bo", "tl",
-      "mg", "as", "tt", "haw", "ln", "ha", "ba", "jw", "su", "yue"};
-  return languages;
+  return store::vad_model_path().transform(
+      [](const std::filesystem::path& path) { return path.string(); });
 }
 
-std::string get_model_path(const std::string& name)
+std::expected<bool, asryx::Error> is_model_installed(const std::string& name)
 {
-  return (_model_dir() / ("ggml-" + name + ".bin")).string();
+  return get_model_path(name).transform(
+      [](const std::string& path) { return store::file_exists_nonempty(path); });
 }
 
-std::string get_vad_model_path()
+std::expected<bool, asryx::Error> is_vad_model_installed()
 {
-  return _vad_model_path().string();
-}
-
-bool is_model_installed(const std::string& name)
-{
-  return _file_exists_nonempty(get_model_path(name));
-}
-
-bool is_vad_model_installed()
-{
-  return _file_exists_nonempty(_vad_model_path());
+  return store::vad_model_path().transform(
+      [](const std::filesystem::path& path) { return store::file_exists_nonempty(path); });
 }
 
 bool is_supported_language(const std::string& language)
@@ -161,145 +103,190 @@ bool is_english_only_model(const std::string& name)
   return name == "tiny.en" || name == "base.en" || name == "small.en" || name == "medium.en";
 }
 
-void validate_config(const config::Config& cfg)
+std::expected<void, asryx::Error> validate_config(const config::Config& cfg)
 {
   if (!_is_supported_model_name(cfg.model)) {
-    throw std::runtime_error("unsupported model size: " + cfg.model);
+    return asryx::fail("unsupported model size: " + cfg.model);
   }
 
   if (!is_supported_language(cfg.language)) {
-    throw std::runtime_error("unsupported language: " + cfg.language);
+    return asryx::fail("unsupported language: " + cfg.language);
   }
 
   if (is_english_only_model(cfg.model) && cfg.language != constants::config::auto_language &&
       cfg.language != constants::config::english_language)
   {
-    throw std::runtime_error("active model " + cfg.model +
-                             " is English-only; use a multilingual model for " + cfg.language);
+    return asryx::fail("active model " + cfg.model +
+                       " is English-only; use a multilingual model for " + cfg.language);
   }
+
+  return {};
 }
 
-void validate_vad_model()
+std::expected<void, asryx::Error> validate_vad_model()
 {
-  const auto path = _vad_model_path();
-  if (!_file_exists_nonempty(path)) {
-    throw std::runtime_error("VAD model is not installed: " + path.string());
+  const auto path = store::vad_model_path();
+  if (!path) {
+    return std::unexpected(path.error());
   }
+
+  if (!store::file_exists_nonempty(*path)) {
+    return asryx::fail("VAD model is not installed: " + path->string());
+  }
+
+  return {};
 }
 
-std::string transcription_language_for(const config::Config& cfg)
+std::expected<std::string, asryx::Error> transcription_language_for(const config::Config& cfg)
 {
-  validate_config(cfg);
+  return validate_config(cfg).transform([&cfg] {
+    if (is_english_only_model(cfg.model)) {
+      return std::string(constants::config::english_language);
+    }
 
-  if (is_english_only_model(cfg.model)) {
-    return std::string(constants::config::english_language);
-  }
+    if (cfg.language == constants::config::auto_language) {
+      return std::string("");
+    }
 
-  if (cfg.language == constants::config::auto_language) {
-    return "";
-  }
-
-  return cfg.language;
+    return cfg.language;
+  });
 }
 
-void list_models()
+std::expected<void, asryx::Error> list_models()
 {
   const auto config = config::load_config();
+  if (!config) {
+    return std::unexpected(config.error());
+  }
+
   std::cout << "Available models:\n";
 
   for (const auto& model_name : get_supported_models()) {
-    const bool installed = is_model_installed(model_name);
-    const bool active = model_name == config.model;
+    const auto installed = is_model_installed(model_name);
+    if (!installed) {
+      return std::unexpected(installed.error());
+    }
 
-    std::cout << "  " << (active ? "* " : "  ") << model_name << (installed ? " (installed)" : "")
+    const bool active = model_name == config->model;
+
+    std::cout << "  " << (active ? "* " : "  ") << model_name << (*installed ? " (installed)" : "")
               << (active ? " (active)" : "") << "\n";
   }
 
   std::cout << "\nVAD model:\n";
+  const auto vad_installed = is_vad_model_installed();
+  if (!vad_installed) {
+    return std::unexpected(vad_installed.error());
+  }
+
   std::cout << "  " << constants::paths::VAD_MODEL_FILE
-            << (is_vad_model_installed() ? " (installed)" : " (missing)") << "\n";
+            << (*vad_installed ? " (installed)" : " (missing)") << "\n";
+
+  return {};
 }
 
-void install_model(const std::string& name)
+std::expected<void, asryx::Error> install_model(const std::string& name)
 {
   if (!_is_supported_model_name(name)) {
-    throw std::runtime_error("unsupported model size: " + name);
+    return asryx::fail("unsupported model size: " + name);
   }
 
-  const auto target_path = std::filesystem::path(get_model_path(name));
-  if (_file_exists_nonempty(target_path)) {
+  const auto model_path = get_model_path(name);
+  if (!model_path) {
+    return std::unexpected(model_path.error());
+  }
+
+  const auto target_path = std::filesystem::path(*model_path);
+  if (store::file_exists_nonempty(target_path)) {
     std::cout << "Model " << name << " is already installed.\n";
-    return;
+    return {};
   }
 
-  const auto downloaded_path = _whisper_model_path(name);
+  const auto downloaded_path = store::whisper_model_path(name);
+  if (!downloaded_path) {
+    return std::unexpected(downloaded_path.error());
+  }
 
-  if (!_file_exists_nonempty(downloaded_path)) {
-    _run_whisper_model_downloader(name);
+  if (!store::file_exists_nonempty(*downloaded_path)) {
+    const auto downloaded = _run_whisper_model_downloader(name);
+    if (!downloaded) {
+      return std::unexpected(downloaded.error());
+    }
   }
   else {
-    std::cout << "Using cached whisper.cpp model: " << downloaded_path << "\n";
+    std::cout << "Using cached whisper.cpp model: " << *downloaded_path << "\n";
   }
 
-  _copy_model_into_store(downloaded_path, target_path);
+  const auto copied = store::copy_model_into_store(*downloaded_path, target_path);
+  if (!copied) {
+    return std::unexpected(copied.error());
+  }
 
-  if (!_file_exists_nonempty(target_path)) {
-    throw std::runtime_error("model install did not create " + target_path.string());
+  if (!store::file_exists_nonempty(target_path)) {
+    return asryx::fail("model install did not create " + target_path.string());
   }
 
   std::cout << "Model " << name << " installed successfully.\n";
+  return {};
 }
 
-void use_model(const std::string& name)
+std::expected<void, asryx::Error> use_model(const std::string& name)
 {
   if (!_is_supported_model_name(name)) {
-    throw std::runtime_error("unsupported model size: " + name);
+    return asryx::fail("unsupported model size: " + name);
   }
 
-  if (!is_model_installed(name)) {
-    throw std::runtime_error("model '" + name +
+  return is_model_installed(name).and_then(
+      [&name](bool installed) -> std::expected<void, asryx::Error> {
+        if (!installed) {
+          return asryx::fail("model '" + name +
                              "' is not installed. Install it with: asryx --model install " + name);
-  }
+        }
 
-  auto config = config::load_config();
-  config.model = name;
-  validate_config(config);
-  config::save_config(config);
-
-  std::cout << "Using model: " << name << "\n";
+        return config::load_config().and_then([&name](config::Config cfg) {
+          cfg.model = name;
+          return validate_config(cfg)
+              .and_then([&cfg] { return config::save_config(cfg); })
+              .transform([&name] { std::cout << "Using model: " << name << "\n"; });
+        });
+      });
 }
 
-void use_language(const std::string& language)
+std::expected<void, asryx::Error> use_language(const std::string& language)
 {
-  auto config = config::load_config();
-  config.language = language;
-  validate_config(config);
-  config::save_config(config);
-
-  std::cout << "Using language: " << language << "\n";
+  return config::load_config().and_then([&language](config::Config cfg) {
+    cfg.language = language;
+    return validate_config(cfg)
+        .and_then([&cfg] { return config::save_config(cfg); })
+        .transform([&language] { std::cout << "Using language: " << language << "\n"; });
+  });
 }
 
-void uninstall_model(const std::string& name)
+std::expected<void, asryx::Error> uninstall_model(const std::string& name)
 {
   if (!_is_supported_model_name(name)) {
-    throw std::runtime_error("unsupported model size: " + name);
+    return asryx::fail("unsupported model size: " + name);
   }
 
-  const auto path = std::filesystem::path(get_model_path(name));
+  return get_model_path(name).and_then([&name](const std::string& model_path) {
+    const auto path = std::filesystem::path(model_path);
 
-  if (!_file_exists_nonempty(path)) {
-    std::cout << "Model " << name << " is not installed.\n";
-    return;
-  }
+    if (!store::file_exists_nonempty(path)) {
+      std::cout << "Model " << name << " is not installed.\n";
+      return std::expected<void, asryx::Error>{};
+    }
 
-  const auto config = config::load_config();
-  if (config.model == name) {
-    throw std::runtime_error("cannot uninstall active model '" + name +
-                             "'; switch models first with: asryx --model use <other>");
-  }
+    return config::load_config().and_then(
+        [&name, path](const config::Config& cfg) -> std::expected<void, asryx::Error> {
+          if (cfg.model == name) {
+            return asryx::fail("cannot uninstall active model '" + name +
+                               "'; switch models first with: asryx --model use <other>");
+          }
 
-  platform::safe_delete_file(path);
-  std::cout << "Model " << name << " uninstalled successfully.\n";
+          return platform::safe_delete_file(path).transform(
+              [&name] { std::cout << "Model " << name << " uninstalled successfully.\n"; });
+        });
+  });
 }
 
 } // namespace model
