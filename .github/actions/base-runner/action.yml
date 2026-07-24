@@ -17,9 +17,10 @@ runs:
           curl \
           cmake \
           ninja-build \
-          build-essential \
-          clang \
-          llvm \
+          g++-13 \
+          gcc-13 \
+          clang-18 \
+          llvm-18 \
           clang-format \
           clang-tidy \
           ccache \
@@ -33,4 +34,8 @@ runs:
           wl-clipboard \
           xclip \
           libnotify-bin
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 130
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 130
+        sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-13 130
+        sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-13 130
         sudo rm -rf /var/lib/apt/lists/*

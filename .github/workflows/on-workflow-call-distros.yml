@@ -11,11 +11,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - id: debian-trixie-c++20
+          - id: debian-trixie-c++23
             image: debian:trixie
-          - id: fedora-latest-c++20
+          - id: fedora-latest-c++23
             image: fedora:latest
-          - id: arch-latest-c++20
+          - id: arch-latest-c++23
             image: archlinux:latest
 
     name: ${{ matrix.id }}

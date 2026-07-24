@@ -29,6 +29,21 @@ _asryx_require_one_command() {
   _asryx_mark_missing "${label}: $*"
 }
 
+_asryx_have_cxx23_compiler() {
+  local compiler=""
+
+  for compiler in c++ g++ clang++; do
+    if _asryx_have "${compiler}" &&
+      printf '%s\n' '#include <expected>' 'int main() { std::expected<int, int> x = 1; return *x; }' |
+        "${compiler}" -std=c++23 -x c++ -fsyntax-only - >/dev/null 2>&1
+    then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 _asryx_require_audio_backend() {
   if [[ -n "${XDG_RUNTIME_DIR:-}" && -S "${XDG_RUNTIME_DIR}/pipewire-0" ]]; then
     _asryx_require_command pw-record
@@ -96,7 +111,9 @@ _asryx_require_runtime_dependency_tools() {
   _asryx_require_command curl
 
   _asryx_require_one_command "c compiler" cc gcc clang
-  _asryx_require_one_command "c++ compiler" c++ g++ clang++
+  if ! _asryx_have_cxx23_compiler; then
+    _asryx_mark_missing "C++23 compiler: GCC 13+ or Clang 16+"
+  fi
 
   _asryx_require_audio_backend
   _asryx_require_clipboard_backend
