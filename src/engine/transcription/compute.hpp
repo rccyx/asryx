@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ASRYX_ENGINE_TRANSCRIPTION_COMPUTE_HPP
+#define ASRYX_ENGINE_TRANSCRIPTION_COMPUTE_HPP
 
 #include <cstdint>
 #include <thread>
@@ -18,9 +19,9 @@ enum class CompiledBackend : std::uint8_t
 
 #ifdef ASRYX_BACKEND_CPU
 inline constexpr CompiledBackend kCompiledBackend = CompiledBackend::Cpu;
-#elif defined(ASRYX_BACKEND_CUDA)
+#elifdef ASRYX_BACKEND_CUDA
 inline constexpr CompiledBackend kCompiledBackend = CompiledBackend::Cuda;
-#elif defined(ASRYX_BACKEND_VULKAN)
+#elifdef ASRYX_BACKEND_VULKAN
 inline constexpr CompiledBackend kCompiledBackend = CompiledBackend::Vulkan;
 #endif
 
@@ -72,3 +73,5 @@ inline int resolve_threads() noexcept
 }
 
 } // namespace engine::transcription::compute
+
+#endif // ASRYX_ENGINE_TRANSCRIPTION_COMPUTE_HPP
