@@ -12,7 +12,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <stdexcept>
 #include <string>
 #include <sys/types.h>
 #include <thread>
@@ -32,10 +31,15 @@ std::filesystem::path _state_path(const std::filesystem::path& runtime_dir)
   return runtime_dir / std::string(constants::runtime::state_file);
 }
 
-bool _read_pid_file(const std::filesystem::path& path, pid_t& pid)
+std::optional<pid_t> _read_pid_file(const std::filesystem::path& path)
 {
   std::ifstream file(path);
-  return static_cast<bool>(file >> pid);
+  pid_t pid = 0;
+  if (file >> pid) {
+    return pid;
+  }
+
+  return std::nullopt;
 }
 
 void _write_pid(const std::filesystem::path& lock_dir)
@@ -45,10 +49,10 @@ void _write_pid(const std::filesystem::path& lock_dir)
 
 bool _has_live_lock(const std::filesystem::path& runtime_dir)
 {
-  pid_t pid = 0;
-  return _read_pid_file(
-             _lock_dir_path(runtime_dir) / std::string(constants::runtime::pid_file_name), pid) &&
-         platform::is_process_running(pid);
+  const auto pid_file =
+      _lock_dir_path(runtime_dir) / std::string(constants::runtime::pid_file_name);
+  const auto maybe_pid = _read_pid_file(pid_file);
+  return maybe_pid.has_value() && platform::is_process_running(*maybe_pid);
 }
 
 std::string _read_text_file(const std::filesystem::path& path)
@@ -111,7 +115,7 @@ std::filesystem::path recorder_pid_path(const std::filesystem::path& runtime_dir
   return runtime_dir / std::string(constants::runtime::recorder_pid_file);
 }
 
-bool acquire_lock(const std::filesystem::path& runtime_dir)
+std::expected<bool, asryx::Error> acquire_lock(const std::filesystem::path& runtime_dir)
 {
   std::filesystem::create_directories(runtime_dir);
   const auto lock_dir = _lock_dir_path(runtime_dir);
@@ -122,11 +126,13 @@ bool acquire_lock(const std::filesystem::path& runtime_dir)
     return true;
   }
 
-  pid_t pid = 0;
-  if (!_read_pid_file(lock_dir / std::string(constants::runtime::pid_file_name), pid) ||
-      !platform::is_process_running(pid))
-  {
-    platform::safe_delete_directory(lock_dir);
+  const auto maybe_pid = _read_pid_file(lock_dir / std::string(constants::runtime::pid_file_name));
+  if (!maybe_pid.has_value() || !platform::is_process_running(*maybe_pid)) {
+    const auto deleted = platform::safe_delete_directory(lock_dir);
+    if (!deleted) {
+      return std::unexpected(deleted.error());
+    }
+
     if (std::filesystem::create_directory(lock_dir, ec)) {
       _write_pid(lock_dir);
       return true;
@@ -136,17 +142,22 @@ bool acquire_lock(const std::filesystem::path& runtime_dir)
   return false;
 }
 
-void release_lock(const std::filesystem::path& runtime_dir)
+std::expected<void, asryx::Error> release_lock(const std::filesystem::path& runtime_dir)
 {
-  platform::safe_delete_directory(_lock_dir_path(runtime_dir));
+  return platform::safe_delete_directory(_lock_dir_path(runtime_dir));
 }
 
-bool has_live_recorder(const std::filesystem::path& runtime_dir, pid_t& pid)
+std::optional<pid_t> live_recorder_pid(const std::filesystem::path& runtime_dir)
 {
-  return _read_pid_file(recorder_pid_path(runtime_dir), pid) && platform::is_process_running(pid);
+  const auto pid = _read_pid_file(recorder_pid_path(runtime_dir));
+  if (pid.has_value() && platform::is_process_running(*pid)) {
+    return pid;
+  }
+
+  return std::nullopt;
 }
 
-void clean_payload(const std::filesystem::path& runtime_dir)
+std::expected<void, asryx::Error> clean_payload(const std::filesystem::path& runtime_dir)
 {
   using PathBuilder = std::filesystem::path (*)(const std::filesystem::path&);
 
@@ -154,8 +165,13 @@ void clean_payload(const std::filesystem::path& runtime_dir)
       recorder_pid_path, recorder_wav_path, recorder_error_path, cancel_marker_path, _state_path};
 
   for (const auto& build_path : targets) {
-    platform::safe_delete_file(build_path(runtime_dir));
+    const auto deleted = platform::safe_delete_file(build_path(runtime_dir));
+    if (!deleted) {
+      return std::unexpected(deleted.error());
+    }
   }
+
+  return {};
 }
 
 void write_state(const std::filesystem::path& runtime_dir, const std::string& state)
@@ -168,8 +184,7 @@ std::string status_for(const std::filesystem::path& runtime_dir)
 {
   const auto state = _read_state(runtime_dir);
 
-  pid_t rec_pid = 0;
-  if (has_live_recorder(runtime_dir, rec_pid)) {
+  if (live_recorder_pid(runtime_dir).has_value()) {
     return std::string(constants::runtime::recording_state);
   }
 
@@ -193,7 +208,7 @@ bool wait_for_idle(const std::filesystem::path& runtime_dir)
   return status_for(runtime_dir) == constants::runtime::idle_state;
 }
 
-bool create_cancel_marker(const std::filesystem::path& runtime_dir)
+std::expected<bool, asryx::Error> create_cancel_marker(const std::filesystem::path& runtime_dir)
 {
   std::filesystem::create_directories(runtime_dir);
   const auto marker_path = cancel_marker_path(runtime_dir);
@@ -203,15 +218,19 @@ bool create_cancel_marker(const std::filesystem::path& runtime_dir)
       return false;
     }
 
-    throw std::runtime_error("failed to create cancel marker: " + marker_path.string());
+    return asryx::fail("failed to create cancel marker: " + marker_path.string());
   }
 
   const auto pid = std::to_string(getpid()) + "\n";
   const ssize_t written = write(fd, pid.c_str(), pid.size());
   const int close_status = close(fd);
   if (written < 0 || static_cast<size_t>(written) != pid.size() || close_status == -1) {
-    platform::safe_delete_file(marker_path);
-    throw std::runtime_error("failed to write cancel marker: " + marker_path.string());
+    const auto deleted = platform::safe_delete_file(marker_path);
+    if (!deleted) {
+      return std::unexpected(deleted.error());
+    }
+
+    return asryx::fail("failed to write cancel marker: " + marker_path.string());
   }
 
   return true;

@@ -88,9 +88,8 @@ std::expected<bool, asryx::Error> command_exists(const std::string& name)
   return found;
 }
 
-std::expected<pid_t, asryx::Error> spawn_process_background(
-    const std::vector<std::string>& argv,
-    const std::string& redirect_file)
+std::expected<pid_t, asryx::Error> spawn_process_background(const std::vector<std::string>& argv,
+                                                            const std::string& redirect_file)
 {
   if (argv.empty()) {
     return asryx::fail("cannot spawn empty command");

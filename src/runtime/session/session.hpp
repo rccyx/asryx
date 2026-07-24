@@ -1,7 +1,11 @@
 #ifndef ASRYX_RUNTIME_SESSION_SESSION_HPP
 #define ASRYX_RUNTIME_SESSION_SESSION_HPP
 
+#include "error.hpp"
+
+#include <expected>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <sys/types.h>
 
@@ -12,16 +16,16 @@ std::filesystem::path recorder_wav_path(const std::filesystem::path& runtime_dir
 std::filesystem::path recorder_error_path(const std::filesystem::path& runtime_dir);
 std::filesystem::path recorder_pid_path(const std::filesystem::path& runtime_dir);
 
-bool acquire_lock(const std::filesystem::path& runtime_dir);
-void release_lock(const std::filesystem::path& runtime_dir);
-bool has_live_recorder(const std::filesystem::path& runtime_dir, pid_t& pid);
+std::expected<bool, asryx::Error> acquire_lock(const std::filesystem::path& runtime_dir);
+std::expected<void, asryx::Error> release_lock(const std::filesystem::path& runtime_dir);
+std::optional<pid_t> live_recorder_pid(const std::filesystem::path& runtime_dir);
 
-void clean_payload(const std::filesystem::path& runtime_dir);
+std::expected<void, asryx::Error> clean_payload(const std::filesystem::path& runtime_dir);
 void write_state(const std::filesystem::path& runtime_dir, const std::string& state);
 std::string status_for(const std::filesystem::path& runtime_dir);
 bool wait_for_idle(const std::filesystem::path& runtime_dir);
 
-bool create_cancel_marker(const std::filesystem::path& runtime_dir);
+std::expected<bool, asryx::Error> create_cancel_marker(const std::filesystem::path& runtime_dir);
 bool cancel_requested(const std::filesystem::path& runtime_dir);
 
 std::string trim(std::string value);

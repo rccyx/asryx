@@ -22,8 +22,8 @@ std::expected<std::filesystem::path, asryx::Error> _require_home_path()
 
 } // namespace
 
-std::expected<std::filesystem::path, asryx::Error> get_home_relative_path(
-    const std::string& rel_path)
+std::expected<std::filesystem::path, asryx::Error>
+get_home_relative_path(const std::string& rel_path)
 {
   return _require_home_path().transform(
       [&rel_path](const std::filesystem::path& home) { return home / rel_path; });

@@ -11,9 +11,8 @@
 namespace platform {
 
 std::expected<bool, asryx::Error> command_exists(const std::string& name);
-std::expected<pid_t, asryx::Error> spawn_process_background(
-    const std::vector<std::string>& argv,
-    const std::string& redirect_file = "");
+std::expected<pid_t, asryx::Error> spawn_process_background(const std::vector<std::string>& argv,
+                                                            const std::string& redirect_file = "");
 std::expected<int, asryx::Error> wait_process(pid_t pid);
 std::expected<bool, asryx::Error> run_process_blocking(const std::vector<std::string>& argv);
 std::expected<bool, asryx::Error> run_process_with_stdin(const std::vector<std::string>& argv,

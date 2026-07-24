@@ -119,10 +119,14 @@ std::expected<WavFormat, asryx::Error> _read_wav_format(const std::vector<std::u
   const auto channels = _read_u16_le(bytes, offset + 2);
   const auto sample_rate = _read_u32_le(bytes, offset + 4);
   const auto bits_per_sample = _read_u16_le(bytes, offset + 14);
-  if (!audio_format) return std::unexpected(audio_format.error());
-  if (!channels) return std::unexpected(channels.error());
-  if (!sample_rate) return std::unexpected(sample_rate.error());
-  if (!bits_per_sample) return std::unexpected(bits_per_sample.error());
+  if (!audio_format)
+    return std::unexpected(audio_format.error());
+  if (!channels)
+    return std::unexpected(channels.error());
+  if (!sample_rate)
+    return std::unexpected(sample_rate.error());
+  if (!bits_per_sample)
+    return std::unexpected(bits_per_sample.error());
 
   return WavFormat{.audio_format = *audio_format,
                    .channels = *channels,
