@@ -2,6 +2,7 @@
 
 #include "config/config.hpp"
 #include "constants/constants.hpp"
+#include "error.hpp"
 #include "platform/fs.hpp"
 #include "tests/model_store.hpp"
 
@@ -19,7 +20,7 @@ namespace {
 
 void _delete_if_exists(const std::filesystem::path& path)
 {
-  platform::safe_delete_file(path);
+  asryx::ignore_failure(platform::safe_delete_file(path));
 }
 
 } // namespace
@@ -71,13 +72,18 @@ pid_t dead_pid()
 
 void clean_runtime()
 {
-  platform::safe_delete_directory(lock_dir());
-  platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_pid_file)));
-  platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_wav_file)));
-  platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_error_file)));
-  platform::safe_delete_file(cancel_marker_path());
-  platform::safe_delete_file(runtime_file(std::string(constants::runtime::state_file)));
-  platform::safe_delete_file(runtime_file(std::string(constants::runtime::error_log_file)));
+  asryx::ignore_failure(platform::safe_delete_directory(lock_dir()));
+  asryx::ignore_failure(
+      platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_pid_file))));
+  asryx::ignore_failure(
+      platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_wav_file))));
+  asryx::ignore_failure(platform::safe_delete_file(
+      runtime_file(std::string(constants::runtime::recorder_error_file))));
+  asryx::ignore_failure(platform::safe_delete_file(cancel_marker_path()));
+  asryx::ignore_failure(
+      platform::safe_delete_file(runtime_file(std::string(constants::runtime::state_file))));
+  asryx::ignore_failure(
+      platform::safe_delete_file(runtime_file(std::string(constants::runtime::error_log_file))));
   _delete_if_exists(pipe_output_path());
   _delete_if_exists(pipe_fail_marker_path());
   state() = TestState{};
@@ -112,7 +118,7 @@ void reset_config(const std::string& pipe_to)
   config::Config cfg;
   cfg.language = std::string(constants::config::english_language);
   cfg.pipe_to = pipe_to;
-  config::save_config(cfg);
+  ASSERT(config::save_config(cfg).has_value());
 }
 
 void write_pid_file(pid_t pid)

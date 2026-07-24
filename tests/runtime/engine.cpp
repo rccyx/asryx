@@ -5,19 +5,14 @@
 
 #include <filesystem>
 #include <fstream>
-#include <stdexcept>
 #include <string>
 #include <sys/types.h>
 #include <unistd.h>
 
 namespace engine {
 
-TranscriptionCancelled::TranscriptionCancelled()
-    : std::runtime_error("transcription canceled")
-{
-}
-
-pid_t start_recording(const std::string& wav_path, const std::string& err_path)
+std::expected<pid_t, asryx::Error> start_recording(const std::string& wav_path,
+                                                   const std::string& err_path)
 {
   auto& state = runtime_test::state();
   ++state.start_calls;
@@ -27,14 +22,14 @@ pid_t start_recording(const std::string& wav_path, const std::string& err_path)
   return state.last_started_pid;
 }
 
-bool stop_recording(pid_t pid)
+std::expected<bool, asryx::Error> stop_recording(pid_t pid)
 {
   auto& state = runtime_test::state();
   ++state.stop_calls;
   return state.stop_result && pid == getpid();
 }
 
-std::string transcribe(const TranscriptionRequest& request)
+std::expected<std::string, asryx::Error> transcribe(const TranscriptionRequest& request)
 {
   auto& state = runtime_test::state();
   ++state.transcribe_calls;
@@ -52,7 +47,7 @@ std::string transcribe(const TranscriptionRequest& request)
   return state.transcript;
 }
 
-bool copy_to_clipboard(const std::string& text)
+std::expected<bool, asryx::Error> copy_to_clipboard(const std::string& text)
 {
   auto& state = runtime_test::state();
   ++state.clipboard_calls;
@@ -60,7 +55,7 @@ bool copy_to_clipboard(const std::string& text)
   return state.clipboard_result;
 }
 
-bool send_notification(const std::string& message)
+std::expected<bool, asryx::Error> send_notification(const std::string& message)
 {
   auto& state = runtime_test::state();
   ++state.notification_calls;
