@@ -1,12 +1,16 @@
 #ifndef ASRYX_RUNTIME_TRANSCRIPTION_TRANSCRIPTION_HPP
 #define ASRYX_RUNTIME_TRANSCRIPTION_TRANSCRIPTION_HPP
 
+#include "error.hpp"
+
+#include <expected>
 #include <filesystem>
 #include <sys/types.h>
 
 namespace runtime::transcription {
 
-void stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pid);
+std::expected<void, asryx::Error> stop_and_transcribe(const std::filesystem::path& runtime_dir,
+                                                      pid_t rec_pid);
 
 } // namespace runtime::transcription
 
