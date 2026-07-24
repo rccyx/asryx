@@ -7,16 +7,20 @@
 
 void run_test_config()
 {
-  config::Config cfg = config::load_config();
+  auto loaded = config::load_config();
+  ASSERT(loaded.has_value());
+  config::Config cfg = *loaded;
   ASSERT(cfg.model == std::string(constants::config::default_model));
   ASSERT(cfg.language == std::string(constants::config::default_language));
   ASSERT(cfg.pipe_to == std::string(""));
 
   cfg.model = "small.en";
   cfg.pipe_to = "cat >/dev/null";
-  config::save_config(cfg);
+  ASSERT(config::save_config(cfg).has_value());
 
-  config::Config cfg2 = config::load_config();
+  loaded = config::load_config();
+  ASSERT(loaded.has_value());
+  config::Config cfg2 = *loaded;
   ASSERT(cfg2.model == std::string("small.en"));
   ASSERT(cfg2.language == std::string(constants::config::default_language));
   ASSERT(cfg2.pipe_to == std::string("cat >/dev/null"));

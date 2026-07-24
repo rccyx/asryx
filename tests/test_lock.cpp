@@ -7,8 +7,9 @@
 
 void run_test_lock()
 {
-  std::string status = runtime::get_status();
-  ASSERT(status == std::string(constants::runtime::idle_state));
+  const auto status = runtime::get_status();
+  ASSERT(status.has_value());
+  ASSERT(*status == std::string(constants::runtime::idle_state));
 
   std::cout << "test_lock passed\n";
 }
