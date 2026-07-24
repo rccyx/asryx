@@ -6,7 +6,6 @@
 
 #include <filesystem>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -37,15 +36,17 @@ struct WhisperContextDeleter
 
 using WhisperContext = std::unique_ptr<whisper_context, WhisperContextDeleter>;
 
-void _validate_request(const TranscriptionRequest& request)
+std::expected<void, asryx::Error> _validate_request(const TranscriptionRequest& request)
 {
   if (!std::filesystem::exists(request.model_path)) {
-    throw std::runtime_error("model file does not exist: " + request.model_path);
+    return asryx::fail("model file does not exist: " + request.model_path);
   }
 
   if (!std::filesystem::exists(request.vad_model_path)) {
-    throw std::runtime_error("VAD model file does not exist: " + request.vad_model_path);
+    return asryx::fail("VAD model file does not exist: " + request.vad_model_path);
   }
+
+  return {};
 }
 
 const char* _language(whisper_context* ctx, const std::string& language)
@@ -87,12 +88,12 @@ whisper_context_params _context_params()
   return params;
 }
 
-WhisperContext _load_context(const std::string& model_path)
+std::expected<WhisperContext, asryx::Error> _load_context(const std::string& model_path)
 {
   const auto context_params = _context_params();
   WhisperContext ctx(whisper_init_from_file_with_params(model_path.c_str(), context_params));
   if (ctx == nullptr) {
-    throw std::runtime_error("failed to initialize whisper model: " + model_path);
+    return asryx::fail("failed to initialize whisper model: " + model_path);
   }
 
   return ctx;
@@ -143,25 +144,36 @@ std::string _read_output(whisper_context* ctx)
 
 } // namespace
 
-std::string run(const TranscriptionRequest& request)
+std::expected<std::string, asryx::Error> run(const TranscriptionRequest& request)
 {
-  _validate_request(request);
-
-  const auto samples = audio::read_pcm16_wav(request.wav_path);
-  const auto ctx = _load_context(request.model_path);
-  auto transcription_request = request;
-  const auto params = _params(ctx.get(), transcription_request);
-
-  if (whisper_full(ctx.get(), params, samples.data(), static_cast<int>(samples.size())) != 0) {
-    if (!request.cancel_marker_path.empty() && std::filesystem::exists(request.cancel_marker_path))
-    {
-      throw TranscriptionCancelled();
-    }
-
-    throw std::runtime_error("transcription failed");
+  const auto valid_request = _validate_request(request);
+  if (!valid_request) {
+    return std::unexpected(valid_request.error());
   }
 
-  return _read_output(ctx.get());
+  const auto samples = audio::read_pcm16_wav(request.wav_path);
+  if (!samples) {
+    return std::unexpected(samples.error());
+  }
+
+  const auto ctx = _load_context(request.model_path);
+  if (!ctx) {
+    return std::unexpected(ctx.error());
+  }
+
+  auto transcription_request = request;
+  const auto params = _params(ctx->get(), transcription_request);
+
+  if (whisper_full(ctx->get(), params, samples->data(), static_cast<int>(samples->size())) != 0) {
+    if (!request.cancel_marker_path.empty() && std::filesystem::exists(request.cancel_marker_path))
+    {
+      return asryx::fail("transcription canceled");
+    }
+
+    return asryx::fail("transcription failed");
+  }
+
+  return _read_output(ctx->get());
 }
 
 } // namespace engine::transcription
