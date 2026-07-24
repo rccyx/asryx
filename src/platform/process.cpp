@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <csignal>
+#include <cstring>
 #include <fcntl.h>
 #include <iterator>
 #include <string>
@@ -52,7 +54,7 @@ void _redirect_stderr_to_file(const std::string& path)
 
 } // namespace
 
-bool command_exists(const std::string& name)
+std::expected<bool, asryx::Error> command_exists(const std::string& name)
 {
   static std::unordered_map<std::string, bool> cache;
 
@@ -75,8 +77,7 @@ bool command_exists(const std::string& name)
   }
 
   if (pid < 0) {
-    cache[name] = false;
-    return false;
+    return asryx::fail("failed to check command: " + name);
   }
 
   int status = 0;
@@ -87,16 +88,17 @@ bool command_exists(const std::string& name)
   return found;
 }
 
-pid_t spawn_process_background(const std::vector<std::string>& argv,
-                               const std::string& redirect_file)
+std::expected<pid_t, asryx::Error> spawn_process_background(
+    const std::vector<std::string>& argv,
+    const std::string& redirect_file)
 {
   if (argv.empty()) {
-    return -1;
+    return asryx::fail("cannot spawn empty command");
   }
 
   const pid_t pid = fork();
   if (pid < 0) {
-    return -1;
+    return asryx::fail("failed to fork process");
   }
 
   if (pid == 0) {
@@ -111,22 +113,25 @@ pid_t spawn_process_background(const std::vector<std::string>& argv,
   return pid;
 }
 
-int wait_process(pid_t pid)
+std::expected<int, asryx::Error> wait_process(pid_t pid)
 {
   int status = 0;
-  waitpid(pid, &status, 0);
+  if (waitpid(pid, &status, 0) == -1) {
+    return asryx::fail("failed to wait for process: " + std::string(std::strerror(errno)));
+  }
+
   return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 }
 
-bool run_process_blocking(const std::vector<std::string>& argv)
+std::expected<bool, asryx::Error> run_process_blocking(const std::vector<std::string>& argv)
 {
   if (argv.empty()) {
-    return false;
+    return asryx::fail("cannot run empty command");
   }
 
   const pid_t pid = fork();
   if (pid < 0) {
-    return false;
+    return asryx::fail("failed to fork process");
   }
 
   if (pid == 0) {
@@ -135,25 +140,26 @@ bool run_process_blocking(const std::vector<std::string>& argv)
     _exit(127);
   }
 
-  return wait_process(pid) == 0;
+  return wait_process(pid).transform([](int status) { return status == 0; });
 }
 
-bool run_process_with_stdin(const std::vector<std::string>& argv, const std::string& input)
+std::expected<bool, asryx::Error> run_process_with_stdin(const std::vector<std::string>& argv,
+                                                         const std::string& input)
 {
   if (argv.empty()) {
-    return false;
+    return asryx::fail("cannot run empty command");
   }
 
   std::array<int, 2> pipe_fds{};
   if (pipe(pipe_fds.data()) != 0) {
-    return false;
+    return asryx::fail("failed to create stdin pipe");
   }
 
   const pid_t pid = fork();
   if (pid < 0) {
     close(pipe_fds[0]);
     close(pipe_fds[1]);
-    return false;
+    return asryx::fail("failed to fork process");
   }
 
   if (pid == 0) {
@@ -185,7 +191,7 @@ bool run_process_with_stdin(const std::vector<std::string>& argv, const std::str
 
   close(pipe_fds[1]);
   (void)signal(SIGPIPE, previous_sigpipe);
-  return wait_process(pid) == 0;
+  return wait_process(pid).transform([](int status) { return status == 0; });
 }
 
 bool is_process_running(pid_t pid)
@@ -197,10 +203,10 @@ bool is_process_running(pid_t pid)
   return kill(pid, 0) == 0;
 }
 
-bool stop_process(pid_t pid, int sig)
+std::expected<bool, asryx::Error> stop_process(pid_t pid, int sig)
 {
   if (pid <= 0) {
-    return false;
+    return asryx::fail("invalid process id");
   }
 
   return kill(pid, sig) == 0;
