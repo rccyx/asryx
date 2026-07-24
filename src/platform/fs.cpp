@@ -3,7 +3,6 @@
 #include "constants/constants.hpp"
 
 #include <cstdlib>
-#include <stdexcept>
 #include <unistd.h>
 #include <vector>
 
@@ -11,11 +10,11 @@ namespace platform {
 
 namespace {
 
-std::filesystem::path _require_home_path()
+std::expected<std::filesystem::path, asryx::Error> _require_home_path()
 {
   const char* const home = std::getenv("HOME");
   if (!home || *home == '\0') {
-    throw std::runtime_error("HOME environment variable not set");
+    return asryx::fail("HOME environment variable not set");
   }
 
   return {home};
@@ -23,9 +22,11 @@ std::filesystem::path _require_home_path()
 
 } // namespace
 
-std::filesystem::path get_home_relative_path(const std::string& rel_path)
+std::expected<std::filesystem::path, asryx::Error> get_home_relative_path(
+    const std::string& rel_path)
 {
-  return _require_home_path() / rel_path;
+  return _require_home_path().transform(
+      [&rel_path](const std::filesystem::path& home) { return home / rel_path; });
 }
 
 std::filesystem::path get_runtime_directory()
@@ -42,16 +43,13 @@ std::filesystem::path get_runtime_directory()
 bool is_owned_path(const std::filesystem::path& path)
 {
   std::filesystem::path canonical_path = std::filesystem::weakly_canonical(path);
-  std::filesystem::path home_path;
-
-  try {
-    home_path = std::filesystem::weakly_canonical(_require_home_path());
-  }
-  catch (const std::runtime_error&) {
+  const auto home_path = _require_home_path();
+  if (!home_path) {
     return false;
   }
 
-  std::vector<std::filesystem::path> allowed = constants::paths::owned_home_paths(home_path);
+  std::vector<std::filesystem::path> allowed =
+      constants::paths::owned_home_paths(std::filesystem::weakly_canonical(*home_path));
   allowed.push_back(get_runtime_directory());
 
   for (const auto& prefix : allowed) {
@@ -65,24 +63,28 @@ bool is_owned_path(const std::filesystem::path& path)
   return false;
 }
 
-void safe_delete_file(const std::filesystem::path& path)
+std::expected<void, asryx::Error> safe_delete_file(const std::filesystem::path& path)
 {
   if (!is_owned_path(path)) {
-    throw std::runtime_error("Permission denied: path is not owned by asryx: " + path.string());
+    return asryx::fail("Permission denied: path is not owned by asryx: " + path.string());
   }
   if (std::filesystem::exists(path) || std::filesystem::is_symlink(path)) {
     std::filesystem::remove(path);
   }
+
+  return {};
 }
 
-void safe_delete_directory(const std::filesystem::path& path)
+std::expected<void, asryx::Error> safe_delete_directory(const std::filesystem::path& path)
 {
   if (!is_owned_path(path)) {
-    throw std::runtime_error("Permission denied: path is not owned by asryx: " + path.string());
+    return asryx::fail("Permission denied: path is not owned by asryx: " + path.string());
   }
   if (std::filesystem::exists(path)) {
     std::filesystem::remove_all(path);
   }
+
+  return {};
 }
 
 } // namespace platform
