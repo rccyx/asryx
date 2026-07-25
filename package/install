@@ -86,7 +86,7 @@ sync_whisper_repo() {
   [[ "${whisper_sha}" =~ ^[0-9a-f]{40}$ ]] ||
     _asryx_die "invalid whisper.cpp pin: ${whisper_sha}"
 
-  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_LOCAL_OPT_DIR_REL}")"
+  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_DEPS_DIR_REL}")"
 
   if [[ -d "${whisper_dir}/.git" ]]; then
     _asryx_log "updating whisper.cpp"
@@ -117,7 +117,7 @@ sync_whisper_repo() {
 sync_libassert_repo() {
   local libassert_sha="$1"
 
-  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_LOCAL_OPT_DIR_REL}")"
+  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_DEPS_DIR_REL}")"
 
   if [[ -d "${libassert_dir}/.git" ]]; then
     _asryx_log "updating libassert"
@@ -213,7 +213,7 @@ write_default_config_if_missing() {
 
 install_vad_model() {
   local target
-  target="$(_asryx_home_path "${ASRYX_SHARE_DIR_REL}")/${ASRYX_VAD_MODEL_FILE}"
+  target="$(_asryx_home_path "${ASRYX_MODELS_DIR_REL}")/${ASRYX_VAD_MODEL_FILE}"
   local tmp="${target}.tmp.$$"
 
   if [[ -s "${target}" ]]; then
@@ -221,7 +221,7 @@ install_vad_model() {
     return 0
   fi
 
-  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_SHARE_DIR_REL}")"
+  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_MODELS_DIR_REL}")"
   _asryx_log "downloading VAD model ${ASRYX_VAD_MODEL_NAME}"
 
   if ! curl -fL --retry 3 -o "${tmp}" "${ASRYX_VAD_MODEL_URL}"; then
@@ -293,4 +293,3 @@ main() {
 }
 
 main "$@"
-
