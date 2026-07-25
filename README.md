@@ -224,9 +224,9 @@ Installed paths:
 
 ```text
 ~/.local/bin/asryx
-~/.local/opt/whisper.cpp
 ~/.local/share/asryx/
-~/.local/share/asryx/ggml-silero-v6.2.0.bin
+~/.local/share/asryx/deps/whisper.cpp
+~/.local/share/asryx/models/ggml-silero-v6.2.0.bin
 ~/.local/share/asryx/versions/whisper-cpp-sha
 ~/.asryx.conf
 ```
@@ -463,13 +463,14 @@ Installed models live under:
 
 ```text
 ~/.local/share/asryx/
+~/.local/share/asryx/models/
 ```
 
 Examples:
 
 ```text
-~/.local/share/asryx/ggml-base.en.bin
-~/.local/share/asryx/ggml-silero-v6.2.0.bin
+~/.local/share/asryx/models/ggml-base.en.bin
+~/.local/share/asryx/models/ggml-silero-v6.2.0.bin
 ```
 
 ## Configuration
@@ -620,9 +621,7 @@ Simply removes the owned files:
 
 ```text
 ~/.local/bin/asryx
-~/.local/opt/whisper.cpp
 ~/.local/share/asryx
-~/.cache/asryx
 ~/.asryx.conf
 $XDG_RUNTIME_DIR/asryx
 ```
