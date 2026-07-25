@@ -1,6 +1,8 @@
 #include "engine/audio/file/file.hpp"
 
+#include <algorithm>
 #include <fstream>
+#include <iterator>
 #include <limits>
 
 namespace engine::audio {
@@ -45,10 +47,8 @@ std::expected<std::vector<std::uint8_t>, asryx::Error> read_audio_file(const std
 
   std::vector<std::uint8_t> bytes;
   bytes.reserve(size);
-
-  for (const char byte : raw_bytes) {
-    bytes.push_back(static_cast<std::uint8_t>(byte));
-  }
+  std::transform(raw_bytes.begin(), raw_bytes.end(), std::back_inserter(bytes),
+                 [](char byte) { return static_cast<std::uint8_t>(byte); });
 
   return bytes;
 }

@@ -40,6 +40,8 @@ std::filesystem::path cancel_marker_path();
 
 pid_t dead_pid();
 void clean_runtime();
+void reset_runtime();
+void reset_runtime_with_pipe(const std::string& pipe_to);
 void write_text(const std::filesystem::path& path, const std::string& text);
 std::string read_text(const std::filesystem::path& path);
 void write_fake_model();
@@ -48,8 +50,14 @@ void write_pid_file(pid_t pid);
 void write_lock_pid(pid_t pid);
 bool runtime_payload_exists();
 pid_t read_recorded_pid();
+std::string runtime_status();
+void toggle_runtime();
+void cancel_runtime();
+void delete_lock();
 void assert_lock_released();
 void write_recording_payload();
+void write_recording_payload_for(pid_t pid);
+void write_transcribing_lock();
 
 } // namespace runtime_test
 

@@ -4,6 +4,7 @@
 #include "constants/constants.hpp"
 #include "error.hpp"
 #include "platform/fs.hpp"
+#include "runtime/runtime.hpp"
 #include "tests/model_store.hpp"
 
 #include <filesystem>
@@ -89,6 +90,19 @@ void clean_runtime()
   state() = TestState{};
 }
 
+void reset_runtime()
+{
+  write_fake_model();
+  reset_config();
+  clean_runtime();
+}
+
+void reset_runtime_with_pipe(const std::string& pipe_to)
+{
+  clean_runtime();
+  reset_config(pipe_to);
+}
+
 void write_text(const std::filesystem::path& path, const std::string& text)
 {
   std::filesystem::create_directories(path.parent_path());
@@ -154,6 +168,31 @@ pid_t read_recorded_pid()
   return pid;
 }
 
+std::string runtime_status()
+{
+  const auto status = runtime::get_status();
+  ASSERT(status.has_value());
+  return *status;
+}
+
+void toggle_runtime()
+{
+  const auto toggled = runtime::toggle();
+  ASSERT(toggled.has_value());
+}
+
+void cancel_runtime()
+{
+  const auto cancelled = runtime::cancel();
+  ASSERT(cancelled.has_value());
+}
+
+void delete_lock()
+{
+  const auto deleted = platform::safe_delete_directory(lock_dir());
+  ASSERT(deleted.has_value());
+}
+
 void assert_lock_released()
 {
   ASSERT(!std::filesystem::exists(lock_dir()));
@@ -161,10 +200,22 @@ void assert_lock_released()
 
 void write_recording_payload()
 {
-  write_pid_file(getpid());
+  write_recording_payload_for(getpid());
+}
+
+void write_recording_payload_for(pid_t pid)
+{
+  write_pid_file(pid);
   write_text(runtime_file(std::string(constants::runtime::recorder_wav_file)), "fake wav");
   write_text(runtime_file(std::string(constants::runtime::state_file)),
              std::string(constants::runtime::recording_state) + "\n");
+}
+
+void write_transcribing_lock()
+{
+  write_text(runtime_file(std::string(constants::runtime::state_file)),
+             std::string(constants::runtime::transcribing_state) + "\n");
+  write_lock_pid(getpid());
 }
 
 } // namespace runtime_test
