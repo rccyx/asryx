@@ -1,4 +1,4 @@
-function(asryx_enable_warnings target)
+function(enable_warnings target)
   if(MSVC)
     target_compile_options(${target} PRIVATE /W4 /WX /permissive-)
     return()
