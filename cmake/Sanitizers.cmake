@@ -1,8 +1,8 @@
-set(ASRYX_SANITIZER "" CACHE STRING "Sanitizer profile: address, undefined, or empty")
-set_property(CACHE ASRYX_SANITIZER PROPERTY STRINGS "" "address" "undefined")
+set(SANITIZER "" CACHE STRING "Sanitizer profile: address, undefined, or empty")
+set_property(CACHE SANITIZER PROPERTY STRINGS "" "address" "undefined")
 
-function(asryx_enable_sanitizers target)
-  if(NOT ASRYX_SANITIZER)
+function(enable_sanitizers target)
+  if(NOT SANITIZER)
     return()
   endif()
 
@@ -10,19 +10,19 @@ function(asryx_enable_sanitizers target)
     message(FATAL_ERROR "Sanitizer presets are configured for GCC/Clang on Linux.")
   endif()
 
-  if(ASRYX_SANITIZER STREQUAL "address")
+  if(SANITIZER STREQUAL "address")
     # catches memory misuse such as buffer overflows and use-after-free.
     target_compile_options(${target} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
     target_link_options(${target} PRIVATE -fsanitize=address)
     return()
   endif()
 
-  if(ASRYX_SANITIZER STREQUAL "undefined")
+  if(SANITIZER STREQUAL "undefined")
     # catches undefined behavior that may compile but still corrupt program semantics.
     target_compile_options(${target} PRIVATE -fsanitize=undefined -fno-omit-frame-pointer)
     target_link_options(${target} PRIVATE -fsanitize=undefined)
     return()
   endif()
 
-  message(FATAL_ERROR "Unknown sanitizer profile: ${ASRYX_SANITIZER}")
+  message(FATAL_ERROR "Unknown sanitizer profile: ${SANITIZER}")
 endfunction()
