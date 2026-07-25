@@ -7,7 +7,6 @@ file(GLOB_RECURSE TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 file(GLOB_RECURSE ASRYX_CORE_SOURCES "${PROJECT_SOURCE_DIR}/src/*.cpp")
 set(ASRYX_TEST_EXCLUDED_SOURCES
     "${PROJECT_SOURCE_DIR}/src/main.cpp"
-    "${PROJECT_SOURCE_DIR}/src/engine/audio/audio.cpp"
     "${PROJECT_SOURCE_DIR}/src/engine/engine.cpp"
     "${PROJECT_SOURCE_DIR}/src/engine/output.cpp"
     "${PROJECT_SOURCE_DIR}/src/engine/recorder/recorder.cpp"

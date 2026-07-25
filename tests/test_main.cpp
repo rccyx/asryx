@@ -58,6 +58,7 @@ int main()
 
     std::cout << "Running unit tests...\n";
     run_test_config();
+    run_test_audio();
     run_test_app();
     run_test_model();
     run_test_lock();
