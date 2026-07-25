@@ -22,8 +22,8 @@
       "displayName": "Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "ASRYX_BUILD_TESTS": "OFF",
-        "ASRYX_BACKEND": "cpu"
+        "BUILD_TESTS": "OFF",
+        "BACKEND": "cpu"
       }
     },
     {
@@ -31,7 +31,7 @@
       "inherits": "release",
       "displayName": "Release CUDA",
       "cacheVariables": {
-        "ASRYX_BACKEND": "cuda"
+        "BACKEND": "cuda"
       }
     },
     {
@@ -39,7 +39,7 @@
       "inherits": "release",
       "displayName": "Release Vulkan",
       "cacheVariables": {
-        "ASRYX_BACKEND": "vulkan"
+        "BACKEND": "vulkan"
       }
     },
     {
@@ -48,7 +48,7 @@
       "displayName": "Test",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ASRYX_BUILD_TESTS": "ON"
+        "BUILD_TESTS": "ON"
       }
     },
     {
@@ -57,8 +57,8 @@
       "displayName": "AddressSanitizer",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ASRYX_BUILD_TESTS": "ON",
-        "ASRYX_SANITIZER": "address"
+        "BUILD_TESTS": "ON",
+        "SANITIZER": "address"
       }
     },
     {
@@ -67,8 +67,8 @@
       "displayName": "UndefinedBehaviorSanitizer",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ASRYX_BUILD_TESTS": "ON",
-        "ASRYX_SANITIZER": "undefined"
+        "BUILD_TESTS": "ON",
+        "SANITIZER": "undefined"
       }
     }
   ],
