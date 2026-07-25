@@ -55,10 +55,9 @@ namespace paths {
 
 inline constexpr std::string_view local_bin_dir_rel = ".local/bin";
 inline constexpr std::string_view asryx_bin_rel = ".local/bin/asryx";
-inline constexpr std::string_view asryx_opt_dir_rel = ".local/opt/asryx";
-inline constexpr std::string_view whisper_checkout_rel = ".local/opt/whisper.cpp";
 inline constexpr std::string_view data_dir_rel = ".local/share/asryx";
-inline constexpr std::string_view cache_dir_rel = ".cache/asryx";
+inline constexpr std::string_view models_dir_rel = ".local/share/asryx/models";
+inline constexpr std::string_view whisper_checkout_rel = ".local/share/asryx/deps/whisper.cpp";
 inline constexpr std::string_view whisper_pin_rel = ".local/share/asryx/versions/whisper-cpp-sha";
 inline constexpr std::string_view VAD_MODEL_FILE = "ggml-silero-v6.2.0.bin";
 
@@ -72,11 +71,6 @@ inline std::filesystem::path asryx_bin_path(const std::filesystem::path& home)
   return home / std::string(asryx_bin_rel);
 }
 
-inline std::filesystem::path asryx_opt_dir(const std::filesystem::path& home)
-{
-  return home / std::string(asryx_opt_dir_rel);
-}
-
 inline std::filesystem::path whisper_checkout_dir(const std::filesystem::path& home)
 {
   return home / std::string(whisper_checkout_rel);
@@ -87,15 +81,14 @@ inline std::filesystem::path data_dir(const std::filesystem::path& home)
   return home / std::string(data_dir_rel);
 }
 
-inline std::filesystem::path cache_dir(const std::filesystem::path& home)
+inline std::filesystem::path models_dir(const std::filesystem::path& home)
 {
-  return home / std::string(cache_dir_rel);
+  return home / std::string(models_dir_rel);
 }
 
 inline std::vector<std::filesystem::path> owned_home_paths(const std::filesystem::path& home)
 {
-  return {asryx_bin_path(home), asryx_opt_dir(home), whisper_checkout_dir(home),
-          data_dir(home),       cache_dir(home),     config_path(home)};
+  return {asryx_bin_path(home), data_dir(home), config_path(home)};
 }
 
 } // namespace paths

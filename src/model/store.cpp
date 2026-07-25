@@ -10,7 +10,7 @@ namespace model::store {
 
 std::expected<std::filesystem::path, asryx::Error> model_dir()
 {
-  return platform::get_home_relative_path(std::string(constants::paths::data_dir_rel));
+  return platform::get_home_relative_path(std::string(constants::paths::models_dir_rel));
 }
 
 std::expected<std::filesystem::path, asryx::Error> vad_model_path()
