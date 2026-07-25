@@ -13,11 +13,7 @@ main() {
 
   local owned=(
     "$(_asryx_home_path "${ASRYX_ASRYX_BIN_REL}")"
-    "$(_asryx_home_path "${ASRYX_WHISPER_CLI_BIN_REL}")"
-    "$(_asryx_home_path "${ASRYX_ASRYX_OPT_DIR_REL}")"
-    "$(_asryx_home_path "${ASRYX_WHISPER_DIR_REL}")"
     "$(_asryx_home_path "${ASRYX_SHARE_DIR_REL}")"
-    "$(_asryx_home_path "${ASRYX_CACHE_DIR_REL}")"
     "$(_asryx_config_path)"
     "$(_asryx_runtime_fallback_dir)"
   )
