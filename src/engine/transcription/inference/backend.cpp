@@ -1,31 +1,24 @@
-#ifndef ASRYX_ENGINE_TRANSCRIPTION_COMPUTE_HPP
-#define ASRYX_ENGINE_TRANSCRIPTION_COMPUTE_HPP
+#include "engine/transcription/inference/backend.hpp"
 
-#include <cstdint>
 #include <thread>
 
-namespace engine::transcription::compute {
+namespace engine::transcription::inference {
 
-enum class CompiledBackend : std::uint8_t
-{
-  Cpu,
-  Cuda,
-  Vulkan,
-};
+namespace {
 
 #if (defined(ASRYX_BACKEND_CPU) + defined(ASRYX_BACKEND_CUDA) + defined(ASRYX_BACKEND_VULKAN)) != 1
 #  error "exactly one inference backend must be selected"
 #endif
 
 #ifdef ASRYX_BACKEND_CPU
-inline constexpr CompiledBackend kCompiledBackend = CompiledBackend::Cpu;
+constexpr CompiledBackend kCompiledBackend = CompiledBackend::Cpu;
 #elifdef ASRYX_BACKEND_CUDA
-inline constexpr CompiledBackend kCompiledBackend = CompiledBackend::Cuda;
+constexpr CompiledBackend kCompiledBackend = CompiledBackend::Cuda;
 #elifdef ASRYX_BACKEND_VULKAN
-inline constexpr CompiledBackend kCompiledBackend = CompiledBackend::Vulkan;
+constexpr CompiledBackend kCompiledBackend = CompiledBackend::Vulkan;
 #endif
 
-constexpr int resolve_cpu_threads(unsigned int logical_threads) noexcept
+constexpr int _resolve_cpu_threads(unsigned int logical_threads) noexcept
 {
   if (logical_threads == 0) {
     return 4;
@@ -49,7 +42,7 @@ constexpr int resolve_cpu_threads(unsigned int logical_threads) noexcept
   return 7;
 }
 
-constexpr int resolve_gpu_helper_threads(unsigned int logical_threads) noexcept
+constexpr int _resolve_gpu_helper_threads(unsigned int logical_threads) noexcept
 {
   if (logical_threads == 0) {
     return 4;
@@ -61,17 +54,22 @@ constexpr int resolve_gpu_helper_threads(unsigned int logical_threads) noexcept
   return 4;
 }
 
-inline int resolve_threads() noexcept
+} // namespace
+
+bool uses_gpu() noexcept
+{
+  return kCompiledBackend != CompiledBackend::Cpu;
+}
+
+int resolve_threads() noexcept
 {
   const auto logical_threads = std::thread::hardware_concurrency();
 
   if constexpr (kCompiledBackend == CompiledBackend::Cpu) {
-    return resolve_cpu_threads(logical_threads);
+    return _resolve_cpu_threads(logical_threads);
   }
 
-  return resolve_gpu_helper_threads(logical_threads);
+  return _resolve_gpu_helper_threads(logical_threads);
 }
 
-} // namespace engine::transcription::compute
-
-#endif // ASRYX_ENGINE_TRANSCRIPTION_COMPUTE_HPP
+} // namespace engine::transcription::inference

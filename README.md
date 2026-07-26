@@ -1,23 +1,4 @@
-<div align="center">
-
 # asryx
-
-<p align="center">
-  <a href="https://github.com/rccyx/asryx/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/rccyx/asryx/ci.yml?branch=main&style=for-the-badge&color=black&labelColor=111111&logo=githubactions&logoColor=white" alt="CI Status"/>
-  </a>
-  <a href="#installation">
-    <img src="https://img.shields.io/badge/Platform-Linux-black?logo=linux&logoColor=white&style=for-the-badge&labelColor=111111" alt="Platform: Linux"/>
-  </a>
-  <a href="#mechanism">
-    <img src="https://img.shields.io/badge/Offline-100%25-black?logo=shield&logoColor=white&style=for-the-badge&labelColor=111111" alt="Offline"/>
-  </a>
-  <a href="https://github.com/rccyx/asryx/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/License-Apache--2.0-black?logo=apache&logoColor=white&style=for-the-badge&labelColor=111111" alt="License: Apache-2.0"/>
-  </a>
-</p>
-
-</div>
 
 <p align="center">
   <a href="./assets/demo.gif">
@@ -283,7 +264,7 @@ ninja
 g++ or clang++
 ```
 
-The default CPU build needs no CUDA or Vulkan packages. GPU builds need extra system packages; see [GPU builds](./docs/gpu.md).
+The default CPU build needs no CUDA or Vulkan packages. GPU builds need extra system packages, see [GPU builds](./docs/gpu.md).
 
 Runtime depends on your machine. For audio, check what you have:
 

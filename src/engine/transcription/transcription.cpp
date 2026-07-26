@@ -1,157 +1,19 @@
 #include "engine/transcription/transcription.hpp"
 
-#include "constants/constants.hpp"
 #include "engine/audio/audio.hpp"
-#include "engine/transcription/compute.hpp"
+#include "engine/transcription/request/request.hpp"
+#include "engine/transcription/vad/speech.hpp"
+#include "engine/transcription/whisper/api.hpp"
 
 #include <filesystem>
-#include <memory>
+#include <span>
 #include <string>
-
-#ifdef __GNUC__
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wshadow"
-#endif
-
-#include <whisper.h>
-
-#ifdef __GNUC__
-#  pragma GCC diagnostic pop
-#endif
 
 namespace engine::transcription {
 
-namespace {
-
-struct WhisperContextDeleter
-{
-  void operator()(whisper_context* ctx) const
-  {
-    if (ctx != nullptr) {
-      whisper_free(ctx);
-    }
-  }
-};
-
-using WhisperContext = std::unique_ptr<whisper_context, WhisperContextDeleter>;
-
-std::expected<void, asryx::Error> _validate_request(const TranscriptionRequest& request)
-{
-  if (!std::filesystem::exists(request.model_path)) {
-    return asryx::fail("model file does not exist: " + request.model_path);
-  }
-
-  if (!std::filesystem::exists(request.vad_model_path)) {
-    return asryx::fail("VAD model file does not exist: " + request.vad_model_path);
-  }
-
-  return {};
-}
-
-const char* _language(whisper_context* ctx, const std::string& language)
-{
-  if (whisper_is_multilingual(ctx) == 0) {
-    return constants::config::english_language.data();
-  }
-
-  if (language.empty() || language == constants::config::auto_language) {
-    return nullptr;
-  }
-
-  return language.c_str();
-}
-
-// cppcheck-suppress constParameterCallback
-bool _abort_requested(void* user_data)
-{
-  if (user_data == nullptr) {
-    return false;
-  }
-
-  const auto* marker_path = static_cast<const std::string*>(user_data);
-  return !marker_path->empty() && std::filesystem::exists(*marker_path);
-}
-
-whisper_context_params _context_params()
-{
-  whisper_context_params params = whisper_context_default_params();
-
-  if constexpr (compute::kCompiledBackend == compute::CompiledBackend::Cpu) {
-    params.use_gpu = false;
-  }
-  else {
-    params.use_gpu = true;
-    params.gpu_device = 0;
-  }
-
-  return params;
-}
-
-std::expected<WhisperContext, asryx::Error> _load_context(const std::string& model_path)
-{
-  const auto context_params = _context_params();
-  WhisperContext ctx(whisper_init_from_file_with_params(model_path.c_str(), context_params));
-
-  if (ctx == nullptr) {
-    return asryx::fail("failed to initialize whisper model: " + model_path);
-  }
-
-  return ctx;
-}
-
-whisper_full_params _params(whisper_context* ctx, TranscriptionRequest& request)
-{
-  whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-
-  params.temperature = 0.0F;
-  params.temperature_inc = 0.2F;
-
-  params.greedy.best_of = 5;
-  params.no_context = true;
-
-  params.n_threads = compute::resolve_threads();
-  params.print_progress = false;
-  params.print_realtime = false;
-  params.print_timestamps = false;
-  params.no_timestamps = true;
-
-  params.suppress_blank = true;
-  params.suppress_nst = false;
-
-  params.language = _language(ctx, request.language);
-  params.detect_language = false;
-
-  params.vad = true;
-  params.vad_model_path = request.vad_model_path.c_str();
-  params.vad_params = whisper_vad_default_params();
-
-  params.abort_callback = _abort_requested;
-  params.abort_callback_user_data = &request.cancel_marker_path;
-
-  return params;
-}
-
-std::string _read_output(whisper_context* ctx)
-{
-  std::string output;
-  const int segments = whisper_full_n_segments(ctx);
-
-  for (int i = 0; i < segments; ++i) {
-    const char* const text = whisper_full_get_segment_text(ctx, i);
-
-    if (text != nullptr) {
-      output += text;
-    }
-  }
-
-  return output;
-}
-
-} // namespace
-
 std::expected<std::string, asryx::Error> run(const TranscriptionRequest& request)
 {
-  const auto valid_request = _validate_request(request);
+  const auto valid_request = request::validate(request);
   if (!valid_request) {
     return std::unexpected(valid_request.error());
   }
@@ -161,15 +23,22 @@ std::expected<std::string, asryx::Error> run(const TranscriptionRequest& request
     return std::unexpected(samples.error());
   }
 
-  const auto ctx = _load_context(request.model_path);
+  auto ctx = whisper::load_context(request.model_path);
   if (!ctx) {
     return std::unexpected(ctx.error());
   }
 
   auto transcription_request = request;
-  const auto params = _params(ctx->get(), transcription_request);
 
-  if (whisper_full(ctx->get(), params, samples->data(), static_cast<int>(samples->size())) != 0) {
+  const auto primary_input = whisper::TranscribeInput{
+      .ctx = &*ctx,
+      .request = &transcription_request,
+      .samples = std::span<const float>(*samples),
+      .use_vad = true,
+      .permissive_no_speech = false,
+  };
+
+  if (!whisper::transcribe(primary_input)) {
     if (!request.cancel_marker_path.empty() && std::filesystem::exists(request.cancel_marker_path))
     {
       return asryx::fail("transcription canceled");
@@ -178,7 +47,34 @@ std::expected<std::string, asryx::Error> run(const TranscriptionRequest& request
     return asryx::fail("transcription failed");
   }
 
-  return _read_output(ctx->get());
+  auto text = whisper::read_output(*ctx);
+  const double vad_speech_s = whisper::detected_speech_seconds({
+      .vad_model_path = request.vad_model_path,
+      .samples = std::span<const float>(*samples),
+  });
+
+  // sometimes you speak for 30 seconds and then all you get is: "hey, hey" -> that's broken
+  // a human speaking normally covers about 1 word every 8 seconds or so
+  // and that's the absolute bare minimum.
+  // So if the VAD detects 16s of actual speech and the word count is less than 2,
+  // yeah, it's kind of sus. If Whisper only spits out like 4 words for a 42s monologue, it's
+  // broken. so run it again without the VAD off this time and get the text, if it's still sus, well
+  // we tried -> send the old one
+  if (vad::looks_suspicious(text, vad_speech_s)) {
+    const auto fallback_input = whisper::TranscribeInput{
+        .ctx = &*ctx,
+        .request = &transcription_request,
+        .samples = std::span<const float>(*samples),
+        .use_vad = false,
+        .permissive_no_speech = true,
+    };
+
+    if (whisper::transcribe(fallback_input)) {
+      text = whisper::read_output(*ctx);
+    }
+  }
+
+  return text;
 }
 
 } // namespace engine::transcription
