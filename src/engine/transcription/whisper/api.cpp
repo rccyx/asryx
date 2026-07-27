@@ -81,7 +81,12 @@ bool _abort_requested(void* user_data)
   return !marker_path->empty() && std::filesystem::exists(*marker_path);
 }
 
-void _silence_logs(ggml_log_level, const char*, void*) {}
+void _silence_logs(ggml_log_level level, const char* text, void* user_data)
+{
+  (void)level;
+  (void)text;
+  (void)user_data;
+}
 
 whisper_context_params _context_params()
 {

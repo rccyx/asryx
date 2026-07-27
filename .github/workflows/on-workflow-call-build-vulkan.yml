@@ -39,8 +39,29 @@ jobs:
 
       - name: project install
         uses: ./.github/actions/project-install
-        with:
-          backend: vulkan
+
+      - name: configure vulkan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cmake \
+            --fresh \
+            --preset release-vulkan \
+            -S "${GITHUB_WORKSPACE}" \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: build vulkan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cmake \
+            --build \
+            --preset release-vulkan \
+            --target asryx \
+            --parallel "$(nproc)"
 
       - name: verify vulkan build
         shell: bash

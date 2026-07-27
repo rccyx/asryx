@@ -18,9 +18,11 @@ class Context final
 {
 public:
   Context(Context&& other) noexcept;
+  Context(const Context& other) = delete;
   ~Context();
 
   Context& operator=(Context&& other) noexcept;
+  Context& operator=(const Context& other) = delete;
 
 private:
   explicit Context(std::unique_ptr<_context_state> state);

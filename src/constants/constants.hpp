@@ -71,19 +71,9 @@ inline std::filesystem::path asryx_bin_path(const std::filesystem::path& home)
   return home / std::string(asryx_bin_rel);
 }
 
-inline std::filesystem::path whisper_checkout_dir(const std::filesystem::path& home)
-{
-  return home / std::string(whisper_checkout_rel);
-}
-
 inline std::filesystem::path data_dir(const std::filesystem::path& home)
 {
   return home / std::string(data_dir_rel);
-}
-
-inline std::filesystem::path models_dir(const std::filesystem::path& home)
-{
-  return home / std::string(models_dir_rel);
 }
 
 inline std::vector<std::filesystem::path> owned_home_paths(const std::filesystem::path& home)

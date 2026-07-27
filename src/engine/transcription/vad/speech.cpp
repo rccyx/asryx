@@ -15,8 +15,7 @@ bool looks_suspicious(const std::string& text, double vad_speech_s)
     return true;
   }
 
-  const auto word_count = static_cast<std::size_t>(std::count(text.begin(), text.end(), ' ')) +
-                          (text.empty() ? 0U : 1U);
+  const auto word_count = static_cast<std::size_t>(std::count(text.begin(), text.end(), ' ')) + 1U;
 
   return word_count < static_cast<std::size_t>(vad_speech_s / 8.0);
 }
