@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: base runner
         uses: ./.github/actions/base-runner
@@ -37,76 +37,10 @@ jobs:
 
           sudo rm -rf /var/lib/apt/lists/*
 
-      - name: cache vulkan build artifacts
-        uses: actions/cache@v4
+      - name: project install
+        uses: ./.github/actions/project-install
         with:
-          path: |
-            ~/.local/opt/whisper.cpp
-            ~/.cache/ccache
-          key: ${{ runner.os }}-${{ runner.arch }}-vulkan-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'versions/whisper-cpp-sha') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-vulkan-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'versions/whisper-cpp-sha') }}-
-            ${{ runner.os }}-${{ runner.arch }}-vulkan-
-
-      - name: prepare whisper.cpp
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          whisper_dir="${HOME}/.local/opt/whisper.cpp"
-          whisper_sha="$(tr -d '[:space:]' <versions/whisper-cpp-sha)"
-
-          mkdir -p "$(dirname "${whisper_dir}")"
-
-          if [[ ! -d "${whisper_dir}/.git" ]]; then
-            rm -rf -- "${whisper_dir}"
-            git init "${whisper_dir}"
-            git -C "${whisper_dir}" remote add origin \
-              https://github.com/ggerganov/whisper.cpp.git
-          fi
-
-          git -C "${whisper_dir}" remote set-url origin \
-            https://github.com/ggerganov/whisper.cpp.git
-
-          git -C "${whisper_dir}" fetch \
-            --depth 1 \
-            origin \
-            "${whisper_sha}"
-
-          git -C "${whisper_dir}" checkout \
-            --detach \
-            FETCH_HEAD
-
-          git -C "${whisper_dir}" submodule sync \
-            --recursive
-
-          git -C "${whisper_dir}" submodule update \
-            --init \
-            --recursive \
-            --depth 1
-
-      - name: configure vulkan
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          cmake \
-            --fresh \
-            --preset release-vulkan \
-            -S "${GITHUB_WORKSPACE}" \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-
-      - name: build vulkan
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          cmake \
-            --build \
-            --preset release-vulkan \
-            --target asryx \
-            --parallel "$(nproc)"
+          backend: vulkan
 
       - name: verify vulkan build
         shell: bash
@@ -119,6 +53,7 @@ jobs:
           test -f "${cache}"
           test -x "${binary}"
 
-          grep -Eq '^ASRYX_BACKEND:STRING=vulkan$' "${cache}"
+          grep -Eq '^CMAKE_CXX_STANDARD:[^=]+=23$' "${cache}"
+          grep -Eq '^BACKEND:STRING=vulkan$' "${cache}"
           grep -Eq '^GGML_VULKAN:BOOL=ON$' "${cache}"
           grep -Eq '^GGML_CUDA:BOOL=OFF$' "${cache}"
