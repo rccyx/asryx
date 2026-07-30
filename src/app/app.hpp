@@ -3,13 +3,12 @@
 
 #include "error.hpp"
 
-#include <expected>
 #include <string>
 #include <vector>
 
 namespace app {
 
-std::expected<int, asryx::Error> run(const std::vector<std::string>& args);
+yx::Result<int> run(const std::vector<std::string>& args);
 
 } // namespace app
 

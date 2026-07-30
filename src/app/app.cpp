@@ -27,10 +27,10 @@ void _print_usage()
             << "  asryx --model uninstall <name>  Uninstall a model\n";
 }
 
-std::expected<void, asryx::Error> _set_pipe_to(const std::string& command)
+yx::Result<void> _set_pipe_to(const std::string& command)
 {
   if (command.empty()) {
-    return asryx::fail("--pipe-to requires a non-empty command string");
+    return yx::fail("--pipe-to requires a non-empty command string");
   }
 
   return config::load_config().and_then([&command](config::Config config) {
@@ -39,7 +39,7 @@ std::expected<void, asryx::Error> _set_pipe_to(const std::string& command)
   });
 }
 
-std::expected<void, asryx::Error> _clear_pipe_to()
+yx::Result<void> _clear_pipe_to()
 {
   return config::load_config().and_then([](config::Config config) {
     config.pipe_to.clear();
@@ -47,16 +47,21 @@ std::expected<void, asryx::Error> _clear_pipe_to()
   });
 }
 
+yx::Result<int> _headless_exit(const yx::Result<void>& result)
+{
+  return yx::ok(result ? 0 : 1);
+}
+
 } // namespace
 
-std::expected<int, asryx::Error> run(const std::vector<std::string>& args)
+yx::Result<int> run(const std::vector<std::string>& args)
 {
   if (args.empty()) {
-    return runtime::toggle().transform([] { return 0; });
+    return _headless_exit(runtime::toggle());
   }
 
   if (args.size() == 1 && args[0] == "cancel") {
-    return runtime::cancel().transform([] { return 0; });
+    return _headless_exit(runtime::cancel());
   }
 
   if (args.size() == 1 && args[0] == "status") {
@@ -100,7 +105,7 @@ std::expected<int, asryx::Error> run(const std::vector<std::string>& args)
 
   std::cerr << "error: invalid arguments\n\n";
   _print_usage();
-  return 1;
+  return yx::ok(1);
 }
 
 } // namespace app
