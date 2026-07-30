@@ -77,6 +77,7 @@ asryx --language <auto|CODE>  # Set language
 asryx --model list            # List supported models
 asryx --model install <MODEL> # Download model
 asryx --model use <MODEL>     # Switch model
+asryx cancel                  # Made a mistake? Cancel active recording or transcription
 ```
 
 ## Mechanism
@@ -131,6 +132,13 @@ press again
   -> release lock
 ```
 
+
+**NOTE:** 
+
+Whisper models can occasionally hallucinate or fail to transcribe long chunks of speech when VAD is too aggressive.
+
+The program actively tracks the ratio of VAD detected speech duration to the final word count. If the output looks suspicious (e.g., 10 seconds of speech detected but only 1 word transcribed), the engine automatically falls back and re-runs the inference without VAD, ensuring no spoken text is ever lost.
+
 Audio capture prefers PipeWire:
 
 ```text
@@ -179,6 +187,7 @@ rec.wav
 rec.err
 error.log
 state
+cancel
 ```
 
 After a completed transcription, runtime files are completely removed. The transcript is always copied to the clipboard first. If `pipe_to` is configured, the same transcript is then piped into that command's stdin.
@@ -435,6 +444,9 @@ When `pipe_to` is non empty, bare `asryx` copies the transcript to the system cl
 ```text
 piped and copied to clipboard.
 ```
+
+> [!NOTE]
+> If your custom pipe command fails or exits non-zero, asryx catches it, writes the error to the runtime `error.log`, and ensures your text isn't lost by keeping it in the clipboard, notifying you with `copied to clipboard (pipe failed)`.
 
 ## Models
 
