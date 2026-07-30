@@ -3,12 +3,11 @@
 
 #include "engine/engine.hpp"
 
-#include <expected>
 #include <string>
 
 namespace engine::transcription {
 
-std::expected<std::string, asryx::Error> run(const TranscriptionRequest& request);
+yx::Result<std::string> run(const TranscriptionRequest& request);
 
 } // namespace engine::transcription
 

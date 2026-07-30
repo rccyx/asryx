@@ -3,11 +3,9 @@
 
 #include "engine/engine.hpp"
 
-#include <expected>
-
 namespace engine::transcription::request {
 
-std::expected<void, asryx::Error> validate(const TranscriptionRequest& request);
+yx::Result<void> validate(const TranscriptionRequest& request);
 
 } // namespace engine::transcription::request
 

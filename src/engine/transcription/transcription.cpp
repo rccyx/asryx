@@ -8,24 +8,25 @@
 #include <filesystem>
 #include <span>
 #include <string>
+#include <utility>
 
 namespace engine::transcription {
 
-std::expected<std::string, asryx::Error> run(const TranscriptionRequest& request)
+yx::Result<std::string> run(const TranscriptionRequest& request)
 {
   const auto valid_request = request::validate(request);
   if (!valid_request) {
-    return std::unexpected(valid_request.error());
+    return yx::fail(valid_request.error());
   }
 
   const auto samples = audio::read_pcm16_wav(request.wav_path);
   if (!samples) {
-    return std::unexpected(samples.error());
+    return yx::fail(samples.error());
   }
 
   auto ctx = whisper::load_context(request.model_path);
   if (!ctx) {
-    return std::unexpected(ctx.error());
+    return yx::fail(ctx.error());
   }
 
   auto transcription_request = request;
@@ -41,10 +42,10 @@ std::expected<std::string, asryx::Error> run(const TranscriptionRequest& request
   if (!whisper::transcribe(primary_input)) {
     if (!request.cancel_marker_path.empty() && std::filesystem::exists(request.cancel_marker_path))
     {
-      return asryx::fail("transcription canceled");
+      return yx::fail("transcription canceled");
     }
 
-    return asryx::fail("transcription failed");
+    return yx::fail("transcription failed");
   }
 
   auto text = whisper::read_output(*ctx);
@@ -53,13 +54,13 @@ std::expected<std::string, asryx::Error> run(const TranscriptionRequest& request
       .samples = std::span<const float>(*samples),
   });
 
-  // sometimes you speak for 30 seconds and then all you get is: "hey, hey" -> that's broken
-  // a human speaking normally covers about 1 word every 8 seconds or so
+  // sometimes you speak for 30s straight & then all you get is: "hey, hey"
+  // someone speaking normally covers about 1 word every 8 seconds or so
   // and that's the absolute bare minimum.
-  // So if the VAD detects 16s of actual speech and the word count is less than 2,
-  // yeah, it's kind of sus. If Whisper only spits out like 4 words for a 42s monologue, it's
-  // broken. so run it again without the VAD off this time and get the text, if it's still sus, well
-  // we tried -> send the old one
+  // So if the VAD detects 16s of actual speech and the word count is <= 2,
+  // yeah, it's sus.
+  // so run it again without VAD & allow non speech this time and get the text, if it's still sus,
+  // well we tried, just send anyway
   if (vad::looks_suspicious(text, vad_speech_s)) {
     const auto fallback_input = whisper::TranscribeInput{
         .ctx = &*ctx,
@@ -70,11 +71,14 @@ std::expected<std::string, asryx::Error> run(const TranscriptionRequest& request
     };
 
     if (whisper::transcribe(fallback_input)) {
-      text = whisper::read_output(*ctx);
+      const auto fallback_text = whisper::read_output(*ctx);
+      if (vad::retry_is_better(text, fallback_text, vad_speech_s)) {
+        text = fallback_text;
+      }
     }
   }
 
-  return text;
+  return yx::ok(std::move(text));
 }
 
 } // namespace engine::transcription
