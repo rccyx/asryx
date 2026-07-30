@@ -81,6 +81,14 @@ target_compile_definitions(
   PRIVATE ASRYX_SOURCE_DIR="${PROJECT_SOURCE_DIR}" ${BACKEND_DEFINITION}
 )
 target_link_libraries(asryx PRIVATE whisper)
+target_compile_options(asryx PRIVATE -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections)
+target_link_options(asryx PRIVATE -Wl,--gc-sections)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  add_custom_command(TARGET asryx POST_BUILD
+    COMMAND strip -s $<TARGET_FILE:asryx>
+  )
+endif()
 
 enable_warnings(asryx)
 enable_hardening(asryx)

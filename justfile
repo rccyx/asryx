@@ -4,8 +4,13 @@ alias f := format
 alias fc := format-check
 alias l := lint
 alias b := build
+alias bv := build-vulkan
+alias bc := build-cuda
 alias t := test
 alias sc := shellcheck
+alias i := install
+alias idv := install-dev
+alias u := uninstall
 alias s := sanitizers
 alias c := clean
 
@@ -24,6 +29,16 @@ test_tidy_sources := "find tests -type f -name '*.cpp' -print0"
 	cmake --build --preset test --target asryx_tests
 	ctest --preset test
 
+@install:
+	bash ./package/install
+
+# you can run with the --dev flag with either --cuda or --vulkan options also
+@install-dev:
+	bash ./package/install --dev
+
+@uninstall:
+	bash ./package/uninstall
+
 @lint:
 	python3 lint/check-line-limits.py
 	python3 lint/check-module-boundaries.py
@@ -35,11 +50,20 @@ test_tidy_sources := "find tests -type f -name '*.cpp' -print0"
 	cppcheck --enable=all --error-exitcode=1 --inline-suppr --suppress=checkersReport --suppress=missingInclude --suppress=normalCheckLevelMaxBranches --suppressions-list=cppcheck.suppressions --std=c++23 -I src -I tests -I . src tests
 
 @shellcheck:
-	shellcheck -x package/install package/uninstall package/lib/_common.sh package/lib/_deps.sh
+	shellcheck -x package/install package/uninstall package/lib/_common.sh package/lib/_deps.sh package/lib/deps/whisper-cpp.sh package/lib/deps/libassert.sh
 
 @build:
 	cmake --fresh --preset release
 	cmake --build --preset release
+
+@build-cuda:
+	cmake --fresh --preset release-cuda
+	cmake --build --preset release-cuda
+
+@build-vulkan:
+	cmake --fresh --preset release-vulkan
+	cmake --build --preset release-vulkan
+
 
 @sanitizers:
 	cmake --fresh --preset asan
