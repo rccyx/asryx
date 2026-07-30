@@ -3,14 +3,13 @@
 
 #include "error.hpp"
 
-#include <expected>
 #include <string>
 
 namespace runtime {
 
-std::expected<std::string, asryx::Error> get_status();
-std::expected<void, asryx::Error> cancel();
-std::expected<void, asryx::Error> toggle();
+yx::Result<std::string> get_status();
+yx::Result<void> cancel();
+yx::Result<void> toggle();
 
 } // namespace runtime
 
