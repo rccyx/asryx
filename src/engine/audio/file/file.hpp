@@ -4,13 +4,12 @@
 #include "error.hpp"
 
 #include <cstdint>
-#include <expected>
 #include <string>
 #include <vector>
 
 namespace engine::audio {
 
-std::expected<std::vector<std::uint8_t>, asryx::Error> read_audio_file(const std::string& path);
+yx::Result<std::vector<std::uint8_t>> read_audio_file(const std::string& path);
 
 } // namespace engine::audio
 
