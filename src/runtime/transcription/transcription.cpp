@@ -8,7 +8,6 @@
 #include "runtime/session/session.hpp"
 
 #include <filesystem>
-#include <iostream>
 #include <string>
 #include <sys/types.h>
 #include <utility>
@@ -23,16 +22,15 @@ struct TranscriptionContext
   engine::TranscriptionRequest request;
 };
 
-std::expected<void, asryx::Error> _clean_cancelled(const std::filesystem::path& runtime_dir)
+yx::Result<void> _clean_cancelled(const std::filesystem::path& runtime_dir)
 {
   return session::clean_payload(runtime_dir).transform([] {
-    asryx::ignore_failure(
-        engine::send_notification(std::string(constants::notifications::cancelled)));
+    yx::ignore_failure(engine::send_notification(std::string(constants::notifications::cancelled)));
   });
 }
 
-std::expected<TranscriptionContext, asryx::Error>
-_build_context(const std::filesystem::path& runtime_dir, config::Config config)
+yx::Result<TranscriptionContext> _build_context(const std::filesystem::path& runtime_dir,
+                                                config::Config config)
 {
   return model::transcription_language_for(config).and_then(
       [&runtime_dir, config = std::move(config)](const std::string& language) {
@@ -54,71 +52,70 @@ _build_context(const std::filesystem::path& runtime_dir, config::Config config)
       });
 }
 
-std::expected<void, asryx::Error> _route(const std::filesystem::path& runtime_dir,
-                                         const config::Config& config, const std::string& output)
+yx::Result<void> _route(const std::filesystem::path& runtime_dir, const config::Config& config,
+                        const std::string& output)
 {
   const auto copied = engine::copy_to_clipboard(output);
   if (!copied) {
-    return std::unexpected(copied.error());
+    return yx::fail(copied.error());
   }
 
   if (!*copied) {
-    const auto log_path =
-        session::write_log(runtime_dir, "clipboard copy failed! transcript was not copied.\n");
-    std::cerr << "clipboard failed! see log: " << log_path << "\n";
-    asryx::ignore_failure(engine::send_notification("clipboard failed! see log"));
+    yx::ignore_failure(
+        session::write_log(runtime_dir, "clipboard copy failed! transcript was not copied.\n"));
+    yx::ignore_failure(
+        engine::send_notification(std::string(constants::notifications::clipboard_failed)));
     return session::clean_payload(runtime_dir);
   }
 
   if (config.pipe_to.empty()) {
-    asryx::ignore_failure(
+    yx::ignore_failure(
         engine::send_notification(std::string(constants::notifications::transcription_copied)));
     return session::clean_payload(runtime_dir);
   }
 
   const auto piped = platform::run_process_with_stdin({"sh", "-c", config.pipe_to}, output);
   if (!piped) {
-    return std::unexpected(piped.error());
+    return yx::fail(piped.error());
   }
 
   if (!*piped) {
-    const auto log_path = session::write_log(
-        runtime_dir, "pipe target failed! transcript was copied to clipboard.\n");
-    std::cerr << "pipe target failed! transcript remains in clipboard, see log: " << log_path
-              << "\n";
-    asryx::ignore_failure(
+    yx::ignore_failure(session::write_log(
+        runtime_dir, "pipe target failed! transcript was copied to clipboard.\n"));
+    yx::ignore_failure(
         engine::send_notification(std::string(constants::notifications::pipe_failed)));
     return session::clean_payload(runtime_dir);
   }
 
-  asryx::ignore_failure(
-      engine::send_notification(std::string(constants::notifications::pipe_copied)));
+  yx::ignore_failure(engine::send_notification(std::string(constants::notifications::pipe_copied)));
   return session::clean_payload(runtime_dir);
 }
 
 } // namespace
 
-std::expected<void, asryx::Error> stop_and_transcribe(const std::filesystem::path& runtime_dir,
-                                                      pid_t rec_pid)
+yx::Result<void> stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pid)
 {
   const auto stopped = engine::stop_recording(rec_pid);
   if (!stopped) {
-    return std::unexpected(stopped.error());
+    return yx::fail(stopped.error());
   }
 
   if (!*stopped) {
-    session::print_recorder_error(runtime_dir);
-    asryx::ignore_failure(engine::send_notification("recorder didn't stop"));
-    return {};
+    yx::ignore_failure(engine::send_notification("recorder didn't stop"));
+    return yx::ok();
   }
 
-  session::write_state(runtime_dir, std::string(constants::runtime::transcribing_state));
+  const auto state_written =
+      session::write_state(runtime_dir, std::string(constants::runtime::transcribing_state));
+  if (!state_written) {
+    return yx::fail(state_written.error());
+  }
 
   const auto context = config::load_config().and_then([&runtime_dir](config::Config config) {
     return _build_context(runtime_dir, std::move(config));
   });
   if (!context) {
-    return std::unexpected(context.error());
+    return yx::fail(context.error());
   }
 
   const auto transcription = engine::transcribe(context->request);
@@ -127,7 +124,7 @@ std::expected<void, asryx::Error> stop_and_transcribe(const std::filesystem::pat
       return _clean_cancelled(runtime_dir);
     }
 
-    return std::unexpected(transcription.error());
+    return yx::fail(transcription.error());
   }
 
   if (session::cancel_requested(runtime_dir)) {
@@ -136,7 +133,7 @@ std::expected<void, asryx::Error> stop_and_transcribe(const std::filesystem::pat
 
   const auto output = session::trim(*transcription);
   if (output.empty()) {
-    asryx::ignore_failure(engine::send_notification("no output"));
+    yx::ignore_failure(engine::send_notification("no output"));
     return session::clean_payload(runtime_dir);
   }
 
