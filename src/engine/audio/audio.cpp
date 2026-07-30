@@ -6,16 +6,16 @@
 
 namespace engine::audio {
 
-std::expected<std::vector<float>, asryx::Error> read_pcm16_wav(const std::string& path)
+yx::Result<std::vector<float>> read_pcm16_wav(const std::string& path)
 {
   const auto bytes = read_audio_file(path);
   if (!bytes) {
-    return std::unexpected(bytes.error());
+    return yx::fail(bytes.error());
   }
 
   const auto wav = parse_pcm16_wav(*bytes);
   if (!wav) {
-    return std::unexpected(wav.error());
+    return yx::fail(wav.error());
   }
 
   return decode_pcm16(*wav);
