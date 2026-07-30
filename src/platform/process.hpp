@@ -3,22 +3,21 @@
 
 #include "error.hpp"
 
-#include <expected>
 #include <string>
 #include <sys/types.h>
 #include <vector>
 
 namespace platform {
 
-std::expected<bool, asryx::Error> command_exists(const std::string& name);
-std::expected<pid_t, asryx::Error> spawn_process_background(const std::vector<std::string>& argv,
-                                                            const std::string& redirect_file = "");
-std::expected<int, asryx::Error> wait_process(pid_t pid);
-std::expected<bool, asryx::Error> run_process_blocking(const std::vector<std::string>& argv);
-std::expected<bool, asryx::Error> run_process_with_stdin(const std::vector<std::string>& argv,
-                                                         const std::string& input);
+yx::Result<bool> command_exists(const std::string& name);
+yx::Result<pid_t> spawn_process_background(const std::vector<std::string>& argv,
+                                           const std::string& redirect_file = "");
+yx::Result<int> wait_process(pid_t pid);
+yx::Result<bool> run_process_blocking(const std::vector<std::string>& argv);
+yx::Result<bool> run_process_with_stdin(const std::vector<std::string>& argv,
+                                        const std::string& input);
 bool is_process_running(pid_t pid);
-std::expected<bool, asryx::Error> stop_process(pid_t pid, int sig = 2);
+yx::Result<bool> stop_process(pid_t pid, int sig = 2);
 
 } // namespace platform
 
