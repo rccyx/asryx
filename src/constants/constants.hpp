@@ -48,6 +48,13 @@ inline constexpr std::string_view pipe_copied = "piped and copied to clipboard."
 inline constexpr std::string_view pipe_failed = "copied to clipboard (pipe failed).";
 inline constexpr std::string_view cancelled = "cancelled";
 inline constexpr std::string_view cancelling = "cancelling…";
+inline constexpr std::string_view clipboard_failed = "clipboard failed";
+inline constexpr std::string_view pipe_target_failed = "pipe target failed";
+inline constexpr std::string_view recorder_failed = "recorder failed";
+inline constexpr std::string_view transcription_failed = "transcription failed";
+inline constexpr std::string_view audio_read_failed = "could not read audio file";
+inline constexpr std::string_view audio_parse_failed = "could not parse audio file";
+inline constexpr std::string_view runtime_failed = "runtime failed";
 
 } // namespace notifications
 
@@ -58,7 +65,6 @@ inline constexpr std::string_view asryx_bin_rel = ".local/bin/asryx";
 inline constexpr std::string_view data_dir_rel = ".local/share/asryx";
 inline constexpr std::string_view models_dir_rel = ".local/share/asryx/models";
 inline constexpr std::string_view whisper_checkout_rel = ".local/share/asryx/deps/whisper.cpp";
-inline constexpr std::string_view whisper_pin_rel = ".local/share/asryx/versions/whisper-cpp-sha";
 inline constexpr std::string_view VAD_MODEL_FILE = "ggml-silero-v6.2.0.bin";
 
 inline std::filesystem::path config_path(const std::filesystem::path& home)
