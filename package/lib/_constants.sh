@@ -17,8 +17,6 @@ ASRYX_MODELS_DIR_REL="${ASRYX_SHARE_DIR_REL}/models"
 ASRYX_ASRYX_BIN_REL=".local/bin/asryx"
 ASRYX_WHISPER_DIR_REL="${ASRYX_DEPS_DIR_REL}/whisper.cpp"
 ASRYX_LIBASSERT_DIR_REL="${ASRYX_DEPS_DIR_REL}/libassert"
-ASRYX_WHISPER_PIN_REL=".local/share/asryx/versions/whisper-cpp-sha"
-ASRYX_LIBASSERT_PIN_REL=".local/share/asryx/versions/libassert-sha"
 ASRYX_RUNTIME_DIR_NAME="asryx"
 ASRYX_RUNTIME_TMP_ROOT="/tmp"
 

@@ -17,10 +17,6 @@ export GIT_TERMINAL_PROMPT=0
 model_name="${ASRYX_DEFAULT_MODEL}"
 backend="cpu"
 install_dev=0
-whisper_url="https://github.com/ggml-org/whisper.cpp.git"
-whisper_dir="$(_asryx_home_path "${ASRYX_WHISPER_DIR_REL}")"
-libassert_url="https://github.com/jeremy-rifkin/libassert.git"
-libassert_dir="$(_asryx_home_path "${ASRYX_LIBASSERT_DIR_REL}")"
 
 select_backend() {
   local requested="$1"
@@ -68,89 +64,17 @@ build_preset() {
   esac
 }
 
-read_whisper_sha() {
-  local path="${repo_dir}/versions/whisper-cpp-sha"
-  [[ -s "${path}" ]] || _asryx_die "missing whisper.cpp pin: ${path}"
-  tr -d '[:space:]' <"${path}"
-}
+install_package_deps() {
+  local recipes=("${script_dir}/lib/deps/whisper-cpp.sh")
 
-read_libassert_sha() {
-  local path="${repo_dir}/versions/libassert-sha"
-  [[ -s "${path}" ]] || _asryx_die "missing libassert pin: ${path}"
-  tr -d '[:space:]' <"${path}"
-}
-
-sync_whisper_repo() {
-  local whisper_sha="$1"
-
-  [[ "${whisper_sha}" =~ ^[0-9a-f]{40}$ ]] ||
-    _asryx_die "invalid whisper.cpp pin: ${whisper_sha}"
-
-  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_DEPS_DIR_REL}")"
-
-  if [[ -d "${whisper_dir}/.git" ]]; then
-    _asryx_log "updating whisper.cpp"
-    git -C "${whisper_dir}" remote set-url origin "${whisper_url}"
-  else
-    if [[ -e "${whisper_dir}" ]]; then
-      _asryx_die "${whisper_dir} exists but is not a git checkout"
-    fi
-
-    _asryx_log "cloning whisper.cpp"
-    git clone --no-checkout "${whisper_url}" "${whisper_dir}"
+  if [[ "${install_dev}" -eq 1 ]]; then
+    recipes+=("${script_dir}/lib/deps/libassert.sh")
   fi
 
-  git -C "${whisper_dir}" fetch --depth 1 origin "${whisper_sha}"
-  git -C "${whisper_dir}" checkout --force --detach "${whisper_sha}"
-  git -C "${whisper_dir}" reset --hard "${whisper_sha}"
-  git -C "${whisper_dir}" submodule sync --recursive
-  git -C "${whisper_dir}" submodule update --init --recursive
-
-  local installed_sha=""
-  installed_sha="$(git -C "${whisper_dir}" rev-parse HEAD)"
-  [[ "${installed_sha}" == "${whisper_sha}" ]] ||
-    _asryx_die "whisper.cpp checkout mismatch: expected ${whisper_sha}, got ${installed_sha}"
-
-  git -C "${whisper_dir}" fsck --no-progress
-}
-
-sync_libassert_repo() {
-  local libassert_sha="$1"
-
-  _asryx_ensure_dir "$(_asryx_home_path "${ASRYX_DEPS_DIR_REL}")"
-
-  if [[ -d "${libassert_dir}/.git" ]]; then
-    _asryx_log "updating libassert"
-    git -C "${libassert_dir}" fetch --depth 1 origin "${libassert_sha}"
-  else
-    if [[ -e "${libassert_dir}" ]]; then
-      _asryx_die "${libassert_dir} exists but is not a git checkout"
-    fi
-
-    _asryx_log "cloning libassert"
-    git clone "${libassert_url}" "${libassert_dir}"
-    git -C "${libassert_dir}" fetch --depth 1 origin "${libassert_sha}"
-  fi
-
-  git -C "${libassert_dir}" checkout --detach "${libassert_sha}"
-  git -C "${libassert_dir}" fsck --no-progress
-}
-
-install_libassert() {
-  local libassert_sha="$1"
-  local build_dir="${libassert_dir}/build/asryx-release"
-
-  _asryx_log "configuring libassert"
-  cmake -S "${libassert_dir}" -B "${build_dir}" -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${libassert_dir}/install" \
-    -DLIBASSERT_BUILD_TESTING=OFF \
-    -DLIBASSERT_USE_EXTERNAL_CPPTRACE=OFF
-
-  _asryx_log "installing libassert"
-  cmake --build "${build_dir}"
-  cmake --install "${build_dir}"
-  write_installed_libassert_pin "${libassert_sha}"
+  local recipe=""
+  for recipe in "${recipes[@]}"; do
+    _asryx_install_dep_recipe "${recipe}"
+  done
 }
 
 build_asryx() {
@@ -174,32 +98,6 @@ install_asryx_binary() {
 
   _asryx_log "installing ${dst_bin}"
   install -m 0755 "${src_bin}" "${dst_bin}"
-}
-
-write_installed_whisper_pin() {
-  local whisper_sha="$1"
-  local versions_dir
-  versions_dir="$(dirname "$(_asryx_home_path "${ASRYX_WHISPER_PIN_REL}")")"
-  local pin_path
-  pin_path="$(_asryx_home_path "${ASRYX_WHISPER_PIN_REL}")"
-  local tmp="${pin_path}.tmp.$$"
-
-  _asryx_ensure_dir "${versions_dir}"
-  printf '%s\n' "${whisper_sha}" >"${tmp}"
-  mv -f "${tmp}" "${pin_path}"
-}
-
-write_installed_libassert_pin() {
-  local libassert_sha="$1"
-  local versions_dir
-  versions_dir="$(dirname "$(_asryx_home_path "${ASRYX_LIBASSERT_PIN_REL}")")"
-  local pin_path
-  pin_path="$(_asryx_home_path "${ASRYX_LIBASSERT_PIN_REL}")"
-  local tmp="${pin_path}.tmp.$$"
-
-  _asryx_ensure_dir "${versions_dir}"
-  printf '%s\n' "${libassert_sha}" >"${tmp}"
-  mv -f "${tmp}" "${pin_path}"
 }
 
 write_default_config_if_missing() {
@@ -233,7 +131,6 @@ install_vad_model() {
   mv -f "${tmp}" "${target}"
 }
 
-
 install_and_select_model() {
   local asryx_bin
   asryx_bin="$(_asryx_home_path "${ASRYX_ASRYX_BIN_REL}")"
@@ -262,30 +159,13 @@ main() {
   _asryx_require_runtime_dependencies
   _asryx_require_backend_dependencies "${backend}"
 
-  if [[ "${install_dev}" -eq 1 ]]; then
-    _asryx_require_dev_dependencies
-  fi
-
-  local whisper_sha=""
-  whisper_sha="$(read_whisper_sha)"
-  _asryx_log "whisper.cpp pin: ${whisper_sha}"
-
-  sync_whisper_repo "${whisper_sha}"
-
-  if [[ "${install_dev}" -eq 1 ]]; then
-    local libassert_sha=""
-    libassert_sha="$(read_libassert_sha)"
-    _asryx_log "libassert pin: ${libassert_sha}"
-    sync_libassert_repo "${libassert_sha}"
-    install_libassert "${libassert_sha}"
-  fi
+  install_package_deps
 
   local preset=""
   preset="$(build_preset)"
 
   build_asryx "${preset}"
   install_asryx_binary "${preset}"
-  write_installed_whisper_pin "${whisper_sha}"
   write_default_config_if_missing
   install_vad_model
   install_and_select_model
