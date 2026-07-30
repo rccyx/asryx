@@ -30,7 +30,7 @@ Safe to say this is as lightweight as it can get.
 
 Boots instantly (~15ms) and exits instantly. 
 
-I personally hate magic black box tools, so I made a full breakdown how it works, read [the machanism](#mechanism). 
+I personally hate magic black box tools, so I made a full breakdown how it works, read [the mechanism](#mechanism). 
 
 It uses standard C++ and Linux [dependencies](#dependencies), and it's CPU only by default, so it works with any rig, regardless of distro or GPU model. 
 
