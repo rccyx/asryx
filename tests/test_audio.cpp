@@ -40,10 +40,14 @@ void test_rejects_invalid_wav_variants()
   const std::vector<std::int16_t> silence = {0};
   auto wrong_riff_size = audio_test::pcm16_wav(silence);
   audio_test::write_riff_size(wrong_riff_size, 4);
+  auto zero_block_align = audio_test::pcm16_wav(silence);
+  zero_block_align[32] = 0;
+  zero_block_align[33] = 0;
 
   const std::vector<AudioCase> cases = {
       {.name = "wrong sample rate", .wav = audio_test::pcm16_wav_at(8000, silence)},
       {.name = "wrong riff size", .wav = wrong_riff_size},
+      {.name = "zero block align", .wav = zero_block_align},
   };
 
   for (const auto& audio_case : cases) {

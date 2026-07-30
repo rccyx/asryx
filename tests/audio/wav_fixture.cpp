@@ -226,12 +226,12 @@ void write_riff_size(std::vector<std::uint8_t>& bytes, std::uint32_t value)
   bytes[write.offset + 3] = static_cast<std::uint8_t>((write.value >> 24U) & 0xFFU);
 }
 
-std::expected<std::vector<float>, asryx::Error> read_samples(const std::vector<std::uint8_t>& bytes)
+yx::Result<std::vector<float>> read_samples(const std::vector<std::uint8_t>& bytes)
 {
   const auto path = _wav_path();
   _write_bytes(path, bytes);
   const auto samples = engine::audio::read_pcm16_wav(path.string());
-  asryx::ignore_failure(platform::safe_delete_file(path));
+  yx::ignore_failure(platform::safe_delete_file(path));
   return samples;
 }
 
