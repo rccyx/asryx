@@ -4,12 +4,11 @@
 #include "engine/audio/wav/wav.hpp"
 #include "error.hpp"
 
-#include <expected>
 #include <vector>
 
 namespace engine::audio {
 
-std::expected<std::vector<float>, asryx::Error> decode_pcm16(const WavSampleData& data);
+yx::Result<std::vector<float>> decode_pcm16(const WavSampleData& data);
 
 } // namespace engine::audio
 

@@ -5,7 +5,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <expected>
 #include <vector>
 
 namespace engine::audio {
@@ -28,8 +27,8 @@ struct WavFormatRead
   size_t chunk_size = 0;
 };
 
-std::expected<WavFormat, asryx::Error> read_wav_format(const WavFormatRead& read);
-std::expected<void, asryx::Error> validate_wav_format(const WavFormat& format);
+yx::Result<WavFormat> read_wav_format(const WavFormatRead& read);
+yx::Result<void> validate_wav_format(const WavFormat& format);
 
 } // namespace engine::audio
 

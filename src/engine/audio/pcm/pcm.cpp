@@ -1,6 +1,7 @@
 #include "engine/audio/pcm/pcm.hpp"
 
 #include <cstdint>
+#include <utility>
 
 namespace engine::audio {
 
@@ -22,16 +23,16 @@ bool _has_range(const ByteRange& range)
 
 } // namespace
 
-std::expected<std::vector<float>, asryx::Error> decode_pcm16(const WavSampleData& data)
+yx::Result<std::vector<float>> decode_pcm16(const WavSampleData& data)
 {
   if (data.bytes == nullptr ||
       !_has_range({.total_size = data.bytes->size(), .offset = data.offset, .length = data.size}))
   {
-    return asryx::fail("invalid wav data range");
+    return yx::fail("invalid wav data range");
   }
 
   if (data.size == 0 || data.size % WAV_BLOCK_ALIGN != 0) {
-    return asryx::fail("invalid wav data: expected complete mono s16 samples");
+    return yx::fail("invalid wav data: expected complete mono s16 samples");
   }
 
   const size_t sample_count = data.size / WAV_BLOCK_ALIGN;
@@ -49,7 +50,7 @@ std::expected<std::vector<float>, asryx::Error> decode_pcm16(const WavSampleData
     samples[sample_index] = static_cast<float>(signed_sample) / PCM16_SCALE;
   }
 
-  return samples;
+  return yx::ok(std::move(samples));
 }
 
 } // namespace engine::audio
