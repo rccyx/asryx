@@ -4,7 +4,6 @@
 #include "engine/engine.hpp"
 #include "error.hpp"
 
-#include <expected>
 #include <memory>
 #include <span>
 #include <string>
@@ -27,7 +26,7 @@ public:
 private:
   explicit Context(std::unique_ptr<_context_state> state);
 
-  friend std::expected<Context, asryx::Error> load_context(const std::string& model_path);
+  friend yx::Result<Context> load_context(const std::string& model_path);
   friend bool transcribe(const TranscribeInput& input);
   friend std::string read_output(const Context& ctx);
 
@@ -49,7 +48,7 @@ struct SpeechInput
   std::span<const float> samples;
 };
 
-std::expected<Context, asryx::Error> load_context(const std::string& model_path);
+yx::Result<Context> load_context(const std::string& model_path);
 bool transcribe(const TranscribeInput& input);
 std::string read_output(const Context& ctx);
 double detected_speech_seconds(const SpeechInput& input);

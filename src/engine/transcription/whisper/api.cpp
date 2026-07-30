@@ -156,7 +156,7 @@ Context::Context(std::unique_ptr<_context_state> state)
 {
 }
 
-std::expected<Context, asryx::Error> load_context(const std::string& model_path)
+yx::Result<Context> load_context(const std::string& model_path)
 {
   whisper_log_set(_silence_logs, nullptr);
 
@@ -165,10 +165,10 @@ std::expected<Context, asryx::Error> load_context(const std::string& model_path)
   state->ctx.reset(whisper_init_from_file_with_params(model_path.c_str(), context_params));
 
   if (state->ctx == nullptr) {
-    return asryx::fail("failed to initialize whisper model: " + model_path);
+    return yx::fail("failed to initialize whisper model: " + model_path);
   }
 
-  return Context(std::move(state));
+  return yx::ok(Context(std::move(state)));
 }
 
 bool transcribe(const TranscribeInput& input)
