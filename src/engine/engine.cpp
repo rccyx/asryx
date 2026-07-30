@@ -7,18 +7,17 @@
 
 namespace engine {
 
-std::expected<pid_t, asryx::Error> start_recording(const std::string& wav_path,
-                                                   const std::string& err_path)
+yx::Result<pid_t> start_recording(const std::string& wav_path, const std::string& err_path)
 {
   return recorder::start(wav_path, err_path);
 }
 
-std::expected<bool, asryx::Error> stop_recording(pid_t pid)
+yx::Result<bool> stop_recording(pid_t pid)
 {
   return recorder::stop(pid);
 }
 
-std::expected<std::string, asryx::Error> transcribe(const TranscriptionRequest& request)
+yx::Result<std::string> transcribe(const TranscriptionRequest& request)
 {
   return transcription::run(request);
 }
