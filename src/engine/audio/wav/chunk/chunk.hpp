@@ -7,7 +7,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <expected>
 #include <vector>
 
 namespace engine::audio {
@@ -18,8 +17,7 @@ struct WavChunks
   WavSampleData sample_data;
 };
 
-std::expected<WavChunks, asryx::Error> read_wav_chunks(const std::vector<std::uint8_t>& bytes,
-                                                       size_t riff_end);
+yx::Result<WavChunks> read_wav_chunks(const std::vector<std::uint8_t>& bytes, size_t riff_end);
 
 } // namespace engine::audio
 
