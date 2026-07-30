@@ -21,7 +21,7 @@ namespace {
 
 void _delete_if_exists(const std::filesystem::path& path)
 {
-  asryx::ignore_failure(platform::safe_delete_file(path));
+  yx::ignore_failure(platform::safe_delete_file(path));
 }
 
 } // namespace
@@ -73,17 +73,17 @@ pid_t dead_pid()
 
 void clean_runtime()
 {
-  asryx::ignore_failure(platform::safe_delete_directory(lock_dir()));
-  asryx::ignore_failure(
+  yx::ignore_failure(platform::safe_delete_directory(lock_dir()));
+  yx::ignore_failure(
       platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_pid_file))));
-  asryx::ignore_failure(
+  yx::ignore_failure(
       platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_wav_file))));
-  asryx::ignore_failure(platform::safe_delete_file(
+  yx::ignore_failure(platform::safe_delete_file(
       runtime_file(std::string(constants::runtime::recorder_error_file))));
-  asryx::ignore_failure(platform::safe_delete_file(cancel_marker_path()));
-  asryx::ignore_failure(
+  yx::ignore_failure(platform::safe_delete_file(cancel_marker_path()));
+  yx::ignore_failure(
       platform::safe_delete_file(runtime_file(std::string(constants::runtime::state_file))));
-  asryx::ignore_failure(
+  yx::ignore_failure(
       platform::safe_delete_file(runtime_file(std::string(constants::runtime::error_log_file))));
   _delete_if_exists(pipe_output_path());
   _delete_if_exists(pipe_fail_marker_path());

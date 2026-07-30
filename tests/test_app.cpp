@@ -26,15 +26,15 @@ std::filesystem::path runtime_file(const std::string& name)
 
 void clean_runtime_files()
 {
-  asryx::ignore_failure(
+  yx::ignore_failure(
       platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_pid_file))));
-  asryx::ignore_failure(
+  yx::ignore_failure(
       platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_wav_file))));
-  asryx::ignore_failure(platform::safe_delete_file(
+  yx::ignore_failure(platform::safe_delete_file(
       runtime_file(std::string(constants::runtime::recorder_error_file))));
-  asryx::ignore_failure(platform::safe_delete_file(
+  yx::ignore_failure(platform::safe_delete_file(
       runtime_file(std::string(constants::runtime::cancel_marker_file))));
-  asryx::ignore_failure(
+  yx::ignore_failure(
       platform::safe_delete_file(runtime_file(std::string(constants::runtime::state_file))));
 }
 
@@ -82,8 +82,8 @@ void stop_started_recording()
 
   if (pid > 0) {
     if (pid != getpid()) {
-      asryx::ignore_failure(platform::stop_process(pid));
-      asryx::ignore_failure(platform::wait_process(pid));
+      yx::ignore_failure(platform::stop_process(pid));
+      yx::ignore_failure(platform::wait_process(pid));
     }
   }
 

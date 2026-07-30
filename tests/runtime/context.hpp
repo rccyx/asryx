@@ -21,6 +21,7 @@ struct TestState
   std::string copied_text;
   std::string last_notification;
   std::string transcript = " transcript text \n";
+  std::string transcribe_error;
   std::string last_cancel_marker_path;
   bool clipboard_result = true;
   bool cancel_during_transcribe = false;

@@ -1,6 +1,7 @@
 #include "constants/constants.hpp"
 #include "platform/process.hpp"
 #include "runtime/context.hpp"
+#include "runtime/runtime.hpp"
 #include "tests/tests.hpp"
 
 #include <filesystem>
@@ -136,6 +137,22 @@ void test_pipe_failure_keeps_clipboard_copy()
   assert_lock_released();
 }
 
+void test_runtime_failure_logs_exact_error_and_notifies_short_message()
+{
+  reset_runtime();
+  state().transcribe_error = "invalid wav format: block alignment is zero";
+  write_recording_payload();
+
+  const auto toggled = runtime::toggle();
+
+  ASSERT(!toggled.has_value());
+  ASSERT(state().last_notification == std::string(constants::notifications::audio_parse_failed));
+  ASSERT(read_text(runtime_file(std::string(constants::runtime::error_log_file))) ==
+         "error: invalid wav format: block alignment is zero\n");
+  ASSERT(!runtime_payload_exists());
+  assert_lock_released();
+}
+
 void test_cancel_recording()
 {
   reset_runtime();
@@ -187,6 +204,7 @@ void run_test_runtime()
   test_pipe_delivery();
   test_empty_transcription_does_not_route();
   test_pipe_failure_keeps_clipboard_copy();
+  test_runtime_failure_logs_exact_error_and_notifies_short_message();
   test_cancel_recording();
   test_cancel_transcribing();
 

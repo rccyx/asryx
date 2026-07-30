@@ -11,25 +11,24 @@
 
 namespace engine {
 
-std::expected<pid_t, asryx::Error> start_recording(const std::string& wav_path,
-                                                   const std::string& err_path)
+yx::Result<pid_t> start_recording(const std::string& wav_path, const std::string& err_path)
 {
   auto& state = runtime_test::state();
   ++state.start_calls;
   runtime_test::write_text(wav_path, "fake wav");
   runtime_test::write_text(err_path, "");
   state.last_started_pid = getpid();
-  return state.last_started_pid;
+  return yx::ok(state.last_started_pid);
 }
 
-std::expected<bool, asryx::Error> stop_recording(pid_t pid)
+yx::Result<bool> stop_recording(pid_t pid)
 {
   auto& state = runtime_test::state();
   ++state.stop_calls;
-  return state.stop_result && pid == getpid();
+  return yx::ok(state.stop_result && pid == getpid());
 }
 
-std::expected<std::string, asryx::Error> transcribe(const TranscriptionRequest& request)
+yx::Result<std::string> transcribe(const TranscriptionRequest& request)
 {
   auto& state = runtime_test::state();
   ++state.transcribe_calls;
@@ -44,23 +43,27 @@ std::expected<std::string, asryx::Error> transcribe(const TranscriptionRequest& 
     runtime_test::write_text(request.cancel_marker_path, "cancel\n");
   }
 
-  return state.transcript;
+  if (!state.transcribe_error.empty()) {
+    return yx::fail(state.transcribe_error);
+  }
+
+  return yx::ok(state.transcript);
 }
 
-std::expected<bool, asryx::Error> copy_to_clipboard(const std::string& text)
+yx::Result<bool> copy_to_clipboard(const std::string& text)
 {
   auto& state = runtime_test::state();
   ++state.clipboard_calls;
   state.copied_text = text;
-  return state.clipboard_result;
+  return yx::ok(state.clipboard_result);
 }
 
-std::expected<bool, asryx::Error> send_notification(const std::string& message)
+yx::Result<bool> send_notification(const std::string& message)
 {
   auto& state = runtime_test::state();
   ++state.notification_calls;
   state.last_notification = message;
-  return true;
+  return yx::ok(true);
 }
 
 } // namespace engine
