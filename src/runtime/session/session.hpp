@@ -3,7 +3,6 @@
 
 #include "error.hpp"
 
-#include <expected>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -16,23 +15,23 @@ std::filesystem::path recorder_wav_path(const std::filesystem::path& runtime_dir
 std::filesystem::path recorder_error_path(const std::filesystem::path& runtime_dir);
 std::filesystem::path recorder_pid_path(const std::filesystem::path& runtime_dir);
 
-std::expected<bool, asryx::Error> acquire_lock(const std::filesystem::path& runtime_dir);
-std::expected<void, asryx::Error> release_lock(const std::filesystem::path& runtime_dir);
+yx::Result<bool> acquire_lock(const std::filesystem::path& runtime_dir);
+yx::Result<void> release_lock(const std::filesystem::path& runtime_dir);
 std::optional<pid_t> live_recorder_pid(const std::filesystem::path& runtime_dir);
+yx::Result<void> write_recorder_pid(const std::filesystem::path& runtime_dir, pid_t pid);
 
-std::expected<void, asryx::Error> clean_payload(const std::filesystem::path& runtime_dir);
-void write_state(const std::filesystem::path& runtime_dir, const std::string& state);
+yx::Result<void> clean_payload(const std::filesystem::path& runtime_dir);
+yx::Result<void> write_state(const std::filesystem::path& runtime_dir, const std::string& state);
 std::string status_for(const std::filesystem::path& runtime_dir);
 bool wait_for_idle(const std::filesystem::path& runtime_dir);
 
-std::expected<bool, asryx::Error> create_cancel_marker(const std::filesystem::path& runtime_dir);
+yx::Result<bool> create_cancel_marker(const std::filesystem::path& runtime_dir);
 bool cancel_requested(const std::filesystem::path& runtime_dir);
 
 std::string trim(std::string value);
 std::string recorder_error_text(const std::filesystem::path& runtime_dir);
-void print_recorder_error(const std::filesystem::path& runtime_dir);
-std::filesystem::path write_log(const std::filesystem::path& runtime_dir,
-                                const std::string& content);
+yx::Result<std::filesystem::path> write_log(const std::filesystem::path& runtime_dir,
+                                            const std::string& content);
 
 } // namespace runtime::session
 

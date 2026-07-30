@@ -8,14 +8,15 @@
 #include <cctype>
 #include <cerrno>
 #include <chrono>
+#include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <sys/types.h>
 #include <thread>
 #include <unistd.h>
+#include <utility>
 
 namespace runtime::session {
 
@@ -42,9 +43,42 @@ std::optional<pid_t> _read_pid_file(const std::filesystem::path& path)
   return std::nullopt;
 }
 
-void _write_pid(const std::filesystem::path& lock_dir)
+yx::Result<void> _create_directory(const std::filesystem::path& path)
 {
-  std::ofstream(lock_dir / std::string(constants::runtime::pid_file_name)) << getpid() << "\n";
+  std::error_code error;
+  std::filesystem::create_directories(path, error);
+  if (error) {
+    return yx::fail("failed to create runtime directory: " + error.message());
+  }
+
+  return yx::ok();
+}
+
+yx::Result<void> _write_text_file(const std::filesystem::path& path, const std::string& content)
+{
+  std::ofstream file(path);
+  if (!file.is_open()) {
+    return yx::fail("failed to open file for writing: " + path.string());
+  }
+  file << content;
+  if (!file) {
+    return yx::fail("failed to write file: " + path.string());
+  }
+  file.flush();
+  if (!file) {
+    return yx::fail("failed to flush file: " + path.string());
+  }
+  file.close();
+  if (!file) {
+    return yx::fail("failed to close file: " + path.string());
+  }
+  return yx::ok();
+}
+
+yx::Result<void> _write_pid(const std::filesystem::path& lock_dir)
+{
+  return _write_text_file(lock_dir / std::string(constants::runtime::pid_file_name),
+                          std::to_string(getpid()) + "\n");
 }
 
 bool _has_live_lock(const std::filesystem::path& runtime_dir)
@@ -115,34 +149,44 @@ std::filesystem::path recorder_pid_path(const std::filesystem::path& runtime_dir
   return runtime_dir / std::string(constants::runtime::recorder_pid_file);
 }
 
-std::expected<bool, asryx::Error> acquire_lock(const std::filesystem::path& runtime_dir)
+yx::Result<bool> acquire_lock(const std::filesystem::path& runtime_dir)
 {
-  std::filesystem::create_directories(runtime_dir);
+  const auto runtime_created = _create_directory(runtime_dir);
+  if (!runtime_created) {
+    return yx::fail(runtime_created.error());
+  }
   const auto lock_dir = _lock_dir_path(runtime_dir);
 
   std::error_code ec;
   if (std::filesystem::create_directory(lock_dir, ec)) {
-    _write_pid(lock_dir);
-    return true;
+    return _write_pid(lock_dir).transform([] { return true; });
+  }
+
+  if (ec && ec != std::errc::file_exists) {
+    return yx::fail("failed to create lock directory: " + ec.message());
   }
 
   const auto maybe_pid = _read_pid_file(lock_dir / std::string(constants::runtime::pid_file_name));
   if (!maybe_pid.has_value() || !platform::is_process_running(*maybe_pid)) {
     const auto deleted = platform::safe_delete_directory(lock_dir);
     if (!deleted) {
-      return std::unexpected(deleted.error());
+      return yx::fail(deleted.error());
     }
 
+    ec.clear();
     if (std::filesystem::create_directory(lock_dir, ec)) {
-      _write_pid(lock_dir);
-      return true;
+      return _write_pid(lock_dir).transform([] { return true; });
+    }
+
+    if (ec && ec != std::errc::file_exists) {
+      return yx::fail("failed to create lock directory: " + ec.message());
     }
   }
 
-  return false;
+  return yx::ok(false);
 }
 
-std::expected<void, asryx::Error> release_lock(const std::filesystem::path& runtime_dir)
+yx::Result<void> release_lock(const std::filesystem::path& runtime_dir)
 {
   return platform::safe_delete_directory(_lock_dir_path(runtime_dir));
 }
@@ -157,7 +201,16 @@ std::optional<pid_t> live_recorder_pid(const std::filesystem::path& runtime_dir)
   return std::nullopt;
 }
 
-std::expected<void, asryx::Error> clean_payload(const std::filesystem::path& runtime_dir)
+yx::Result<void> write_recorder_pid(const std::filesystem::path& runtime_dir, pid_t pid)
+{
+  const auto runtime_created = _create_directory(runtime_dir);
+  if (!runtime_created) {
+    return yx::fail(runtime_created.error());
+  }
+  return _write_text_file(recorder_pid_path(runtime_dir), std::to_string(pid) + "\n");
+}
+
+yx::Result<void> clean_payload(const std::filesystem::path& runtime_dir)
 {
   using PathBuilder = std::filesystem::path (*)(const std::filesystem::path&);
 
@@ -167,17 +220,21 @@ std::expected<void, asryx::Error> clean_payload(const std::filesystem::path& run
   for (const auto& build_path : targets) {
     const auto deleted = platform::safe_delete_file(build_path(runtime_dir));
     if (!deleted) {
-      return std::unexpected(deleted.error());
+      return yx::fail(deleted.error());
     }
   }
 
-  return {};
+  return yx::ok();
 }
 
-void write_state(const std::filesystem::path& runtime_dir, const std::string& state)
+yx::Result<void> write_state(const std::filesystem::path& runtime_dir, const std::string& state)
 {
-  std::ofstream file(_state_path(runtime_dir));
-  file << state << "\n";
+  const auto runtime_created = _create_directory(runtime_dir);
+  if (!runtime_created) {
+    return yx::fail(runtime_created.error());
+  }
+
+  return _write_text_file(_state_path(runtime_dir), state + "\n");
 }
 
 std::string status_for(const std::filesystem::path& runtime_dir)
@@ -208,32 +265,34 @@ bool wait_for_idle(const std::filesystem::path& runtime_dir)
   return status_for(runtime_dir) == constants::runtime::idle_state;
 }
 
-std::expected<bool, asryx::Error> create_cancel_marker(const std::filesystem::path& runtime_dir)
+yx::Result<bool> create_cancel_marker(const std::filesystem::path& runtime_dir)
 {
-  std::filesystem::create_directories(runtime_dir);
+  const auto runtime_created = _create_directory(runtime_dir);
+  if (!runtime_created) {
+    return yx::fail(runtime_created.error());
+  }
+
   const auto marker_path = cancel_marker_path(runtime_dir);
   const int fd = open(marker_path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
   if (fd == -1) {
     if (errno == EEXIST) {
-      return false;
+      return yx::ok(false);
     }
 
-    return asryx::fail("failed to create cancel marker: " + marker_path.string());
+    return yx::fail("failed to create cancel marker: " + marker_path.string());
   }
 
-  const auto pid = std::to_string(getpid()) + "\n";
-  const ssize_t written = write(fd, pid.c_str(), pid.size());
   const int close_status = close(fd);
-  if (written < 0 || static_cast<size_t>(written) != pid.size() || close_status == -1) {
+  if (close_status == -1) {
     const auto deleted = platform::safe_delete_file(marker_path);
     if (!deleted) {
-      return std::unexpected(deleted.error());
+      return yx::fail(deleted.error());
     }
 
-    return asryx::fail("failed to write cancel marker: " + marker_path.string());
+    return yx::fail("failed to close cancel marker: " + std::string(std::strerror(errno)));
   }
 
-  return true;
+  return yx::ok(true);
 }
 
 bool cancel_requested(const std::filesystem::path& runtime_dir)
@@ -260,22 +319,21 @@ std::string recorder_error_text(const std::filesystem::path& runtime_dir)
   return trim(_read_text_file(recorder_error_path(runtime_dir)));
 }
 
-void print_recorder_error(const std::filesystem::path& runtime_dir)
+yx::Result<std::filesystem::path> write_log(const std::filesystem::path& runtime_dir,
+                                            const std::string& content)
 {
-  const auto error = recorder_error_text(runtime_dir);
-  if (!error.empty()) {
-    std::cerr << error << "\n";
+  const auto runtime_created = _create_directory(runtime_dir);
+  if (!runtime_created) {
+    return yx::fail(runtime_created.error());
   }
-}
 
-std::filesystem::path write_log(const std::filesystem::path& runtime_dir,
-                                const std::string& content)
-{
-  std::filesystem::create_directories(runtime_dir);
-  const auto path = runtime_dir / std::string(constants::runtime::error_log_file);
-  std::ofstream file(path);
-  file << content;
-  return path;
+  auto path = runtime_dir / std::string(constants::runtime::error_log_file);
+  const auto written = _write_text_file(path, content);
+  if (!written) {
+    return yx::fail(written.error());
+  }
+
+  return yx::ok(std::move(path));
 }
 
 } // namespace runtime::session
