@@ -8,29 +8,42 @@
 
 ## Overview
 
-This is a native C++ ASR binary toggle/CLI for Linux.
+This is a native C++ dictation program for Linux.
 
-Runs local transcription against [GGML Whisper](https://github.com/ggml-org/whisper.cpp) models through a [pinned](./versions/) native inference backend, linked in process through its public C compatible API.
+Runs local transcription against [GGML Whisper](https://github.com/ggml-org/whisper.cpp), linked in [process](/src/engine/transcription/whisper/api.cpp) through the C API.
 
-The model supplies inference and all 99 language support options, while `asryx` owns the entire native Linux runtime around it.
+The model supplies inference and all [99 language](https://github.com/openai/whisper#available-models-and-languages) support options, while `asryx` owns the entire native Linux runtime around it.
 
-Records audio through the active Linux audio stack, runs recognition in process with local VAD, writes the transcript to the active clipboard backend, optionally pipes it to a user command, emits desktop notifications, and removes runtime artifacts after completion.
+Records audio through the active Linux audio stack, runs recognition in process with local [VAD](https://developers.openai.com/api/docs/guides/realtime-vad), writes the transcript to the active clipboard backend, optionally pipes it to a user command, emits desktop notifications, and removes runtime artifacts after completion.
 
-Easily [installed](#installation), and more easily [removed](#uninstallation).
+Respects your machine. Good UX. Easily [installed](#installation), and more easily [removed](#uninstallation).
 
-Doesn't stay in memory between uses. 0MB idle RAM. Doesn't load the model unless invoked.
+One command install: You compile the program on your own machine, no package manager or third parties. 
 
-Boots instantly and exits instantly.
+And one command uninstall: It removes everything as if it never got in. 
 
-One command install. You compile the program on your own machine, no package manager or third parties.
+Daemonless: Doesn't stay in memory between uses. 0MB RAM & 0% CPU/GPU usage when idle . Doesn't load the model unless invoked.
 
-It uses standard C++ and Linux [dependencies](#dependencies), and it's CPU only by default, so it works with any machine, regardless of distro or GPU model.
+The final compiled binary is 2.02 MiB. 
 
-GGML models are [downloaded locally](#models) and transcription runs against those weights on your machine.
+Safe to say this is as lightweight as it can get.
+
+Boots instantly (~15ms) and exits instantly. 
+
+I personally hate magic black box tools, so I made a full breakdown how it works, read [the machanism](#mechanism). 
+
+It uses standard C++ and Linux [dependencies](#dependencies), and it's CPU only by default, so it works with any rig, regardless of distro or GPU model. 
+
+But there's [GPU support](#gpu) if you want to opt in.
+
+GGML models are [downloaded locally](#models) and transcription runs against those weights on your machine. 
 
 [Reliable](#mechanism) is the word. Repeated invocations, key repeat, stale locks, interrupted sessions, and abandoned runtime artifacts are handled before a new recording begins.
 
-There is no ASR server, background daemon, hosted API, Python runtime, Node runtime, container layer, resident daemon, GUI process, dashboard, subscription, or network dependency during transcription.
+There is no ASR server, background daemon, hosted API, Python runtime, no pip nor cargo, Node runtime, container layer, resident daemon, GUI process, dashboard, subscription, or network dependency during transcription.
+
+The CLI and runtime contract are permanent. Even if I swap the inference engine down the line (Whisper for Parakeet, say), this stays native C++, stays lightweight, stays fast, stays backwards-compatible.
+
 
 ## Usage
 
@@ -199,17 +212,24 @@ Now, the GPU is actually way faster so you might want to use it. See [GPU builds
 
 ### What it does
 
-The installer validates the user environment, checks required tools, clones the pinned native inference source, builds the binary locally, installs the executable, writes the version pin, writes the default config, installs the VAD model, installs the default transcription model, selects it, and prints a PATH note when `~/.local/bin` is unavailable from the current shell.
+The installer validates the user environment, checks required tools, clones the pinned native inference source, builds the binary locally, installs the executable, writes the default config, installs the VAD model, installs the default transcription model, selects it, and prints a PATH note when `~/.local/bin` is unavailable from the current shell.
 
 Installed paths:
 
 ```text
-~/.local/bin/asryx
-~/.local/share/asryx/
-~/.local/share/asryx/deps/whisper.cpp
-~/.local/share/asryx/models/ggml-silero-v6.2.0.bin
-~/.local/share/asryx/versions/whisper-cpp-sha
-~/.asryx.conf
+~
+├── .asryx.conf <-- config file
+└── .local/
+    ├── bin/
+    │   └── asryx <-- binary
+    └── share/
+        └── asryx/ <-- all assets
+            ├── deps/
+            │   └── whisper.cpp/
+            └── models/
+                ├── ggml-base.en.bin
+                └── ggml-silero-v6.2.0.bin
+                └── ...
 ```
 
 Default transcription model:
@@ -251,22 +271,21 @@ transcribing
 
 ## Dependencies
 
-You probably have most of these already, but check.
+If you hear sound, see notifications, and have installed a non TTY distro, you probably have everything you need already, but check in case you spawned in a bare metal setup:
 
-Build:
+* **Build Tools:** `git`, `curl`, `cmake`, `ninja-build`, `g++` (or `clang++`)
+* **Audio Recording:** `pipewire` (for `pw-record`) **or** `alsa-utils` (for `arecord`)
+* **Clipboard:** `wl-clipboard` (Wayland) **or** `xclip` (X11)
+* **Desktop Notifications:** `libnotify-bin` (for `notify-send`)
 
-```text
-bash
-git
-curl
-cmake
-ninja
-g++ or clang++
-```
+> [!IMPORTANT]
+> The build requires a **C++23** capable compiler (e.g., GCC ≥ 12/14 or Clang ≥ 16/21) and CMake ≥ 3.20.
 
-The default CPU build needs no CUDA or Vulkan packages. GPU builds need extra system packages, see [GPU builds](./docs/gpu.md).
+The default is CPU build. GPU builds need extra system packages, see [GPU builds](./docs/gpu.md).
 
-Runtime depends on your machine. For audio, check what you have:
+### Checks
+
+For audio, check what you have:
 
 ```bash
 which pw-record || which arecord
@@ -274,14 +293,26 @@ which pw-record || which arecord
 
 PipeWire systems have `pw-record`, ALSA systems have `arecord`. If you have neither, install `pipewire` or `alsa-utils` through your package manager.
 
-For clipboard, it depends on your session. Hyprland, Sway, and any other Wayland compositor need `wl-clipboard`. X11 needs `xclip`. If you're not sure which you're on:
+For clipboard, it depends on your session. Hyprland, Sway, and any other Wayland compositor need `wl-clipboard`. X11 needs `xclip`. 
+
+If you're not sure which you're on, run:
 
 ```bash
 echo "$XDG_SESSION_TYPE"
 ```
 
+For notifications, it uses `notify-send` (from `libnotify` / `libnotify-bin`), just a lightweight client binary that sends a standard D-Bus message, most distros already ship with it. 
+
+Check for the standard Freedesktop notification dispatcher:
+
+```bash
+which notify-send
+```
+
+Install it if it doesn't exist.
+
 > [!IMPORTANT]
-> Desktop notifications require an active notification daemon such as Mako, Dunst, or the session's native notification service.
+> Full environments (GNOME, KDE) handle this natively. Tiling window managers like Hyprland require an active daemon like dunst, mako, or swaync for you to see the notification in the desktop.
 
 ## Keybind
 
@@ -443,7 +474,6 @@ Speed is relative to large on CPU.
 Installed models live under:
 
 ```text
-~/.local/share/asryx/
 ~/.local/share/asryx/models/
 ```
 
@@ -594,15 +624,17 @@ Invalid model and language values are rejected before recording starts.
 
 ## Uninstallation
 
+Your system goes back to the **exact state** it was in **before** you touched the **project**.
+
 ```bash
 ./package/uninstall
 ```
 
-Simply removes the owned files:
+Simply removes the owned files/folders:
 
 ```text
 ~/.local/bin/asryx
-~/.local/share/asryx
+~/.local/share/asryx/
 ~/.asryx.conf
 $XDG_RUNTIME_DIR/asryx
 ```
