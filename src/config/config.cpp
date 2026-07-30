@@ -9,7 +9,7 @@
 
 namespace config {
 
-std::expected<Config, asryx::Error> load_config()
+yx::Result<Config> load_config()
 {
   return platform::get_home_relative_path(std::string(constants::config::file_name))
       .transform([](const std::filesystem::path& path) {
@@ -48,38 +48,50 @@ std::expected<Config, asryx::Error> load_config()
       });
 }
 
-std::expected<void, asryx::Error> save_config(const Config& config)
+yx::Result<void> save_config(const Config& config)
 {
   const auto path = platform::get_home_relative_path(std::string(constants::config::file_name));
   if (!path) {
-    return std::unexpected(path.error());
+    return yx::fail(path.error());
   }
 
   const auto temp_path = platform::get_home_relative_path(
       std::string(constants::config::file_name) + std::string(constants::config::temp_suffix));
   if (!temp_path) {
-    return std::unexpected(temp_path.error());
+    return yx::fail(temp_path.error());
   }
 
   {
     std::ofstream file(*temp_path);
     if (!file.is_open()) {
-      return asryx::fail("Failed to open temporary config file for writing: " +
-                         temp_path->string());
+      return yx::fail("failed to open tmp conf file for writing: " + temp_path->string());
     }
 
     file << constants::config::model_key << "=" << config.model << "\n";
     file << constants::config::language_key << "=" << config.language << "\n";
     file << constants::config::pipe_to_key << "=" << config.pipe_to << "\n";
+    if (!file) {
+      return yx::fail("failed to write tmp config file: " + temp_path->string());
+    }
+
+    file.flush();
+    if (!file) {
+      return yx::fail("failed to flush tmp config file: " + temp_path->string());
+    }
+
+    file.close();
+    if (!file) {
+      return yx::fail("failed to close tmp config file: " + temp_path->string());
+    }
   }
 
   std::error_code error;
   std::filesystem::rename(*temp_path, *path, error);
   if (error) {
-    return asryx::fail("Failed to save config file: " + error.message());
+    return yx::fail("failed to save config file: " + error.message());
   }
 
-  return {};
+  return yx::ok();
 }
 
 } // namespace config

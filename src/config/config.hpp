@@ -4,7 +4,6 @@
 #include "constants/constants.hpp"
 #include "error.hpp"
 
-#include <expected>
 #include <string>
 
 namespace config {
@@ -16,8 +15,8 @@ struct Config
   std::string pipe_to;
 };
 
-std::expected<Config, asryx::Error> load_config();
-std::expected<void, asryx::Error> save_config(const Config& config);
+yx::Result<Config> load_config();
+yx::Result<void> save_config(const Config& config);
 
 } // namespace config
 
