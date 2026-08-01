@@ -17,6 +17,7 @@ alias c := clean
 cpp_sources := "find src tests -type f \\( -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' \\) -print0"
 src_tidy_sources := "find src -type f -name '*.cpp' -print0"
 test_tidy_sources := "find tests -type f -name '*.cpp' -print0"
+tidy_jobs := "2"
 
 @format:
 	{{cpp_sources}} | xargs -0 -r clang-format -i
@@ -45,8 +46,8 @@ test_tidy_sources := "find tests -type f -name '*.cpp' -print0"
 	python3 lint/check-owned-paths.py
 	cmake --fresh --preset release
 	cmake --fresh --preset test
-	{{src_tidy_sources}} | xargs -0 -r -n 1 -P "$(nproc)" clang-tidy --config-file=.clang-tidy -p build/release
-	{{test_tidy_sources}} | xargs -0 -r -n 1 -P "$(nproc)" clang-tidy --config-file=.clang-tidy -p build/test
+	{{src_tidy_sources}} | xargs -0 -r -n 1 -P "{{tidy_jobs}}" clang-tidy --config-file=.clang-tidy -p build/release
+	{{test_tidy_sources}} | xargs -0 -r -n 1 -P "{{tidy_jobs}}" clang-tidy --config-file=.clang-tidy -p build/test
 	cppcheck --enable=all --error-exitcode=1 --inline-suppr --suppress=checkersReport --suppress=missingInclude --suppress=normalCheckLevelMaxBranches --suppressions-list=cppcheck.suppressions --std=c++23 -I src -I tests -I . src tests
 
 @shellcheck:
