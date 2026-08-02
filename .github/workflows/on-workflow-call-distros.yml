@@ -27,7 +27,7 @@ jobs:
             image: archlinux:latest
             toolchain: distro-default
 
-    name: install / ${{ matrix.distro }} / ${{ matrix.toolchain }}
+    name: smoke / ${{ matrix.distro }} / ${{ matrix.toolchain }}
     container:
       image: ${{ matrix.image }}
 
