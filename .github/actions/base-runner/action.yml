@@ -9,12 +9,16 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+
         sudo apt-get update
+
+        # apt.llvm repo setup needs tls, gpg, and curl.
         sudo apt-get install -y --no-install-recommends \
           ca-certificates \
           gnupg \
           curl
 
+        # ubuntu 24.04 doesn't ship llvm 21 in its normal repos.
         llvm_keyring="/usr/share/keyrings/llvm-snapshot.gpg"
         curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |
           sudo gpg --dearmor -o "${llvm_keyring}"
@@ -23,36 +27,48 @@ runs:
           sudo tee /etc/apt/sources.list.d/llvm-toolchain-noble-21.list >/dev/null
 
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          ca-certificates \
-          bash \
-          git \
-          curl \
-          cmake \
-          ninja-build \
-          g++-14 \
-          gcc-14 \
-          clang-21 \
-          llvm-21 \
-          clang-format-21 \
-          clang-tidy-21 \
-          ccache \
-          cppcheck \
-          python3 \
-          shellcheck \
-          just \
-          coreutils \
-          pipewire \
-          alsa-utils \
-          wl-clipboard \
-          xclip \
+
+        # system tools used by checkout, cmake, scripts, and ci checks.
+        system_packages=(
+          ca-certificates
+          bash
+          git
+          curl
+          cmake
+          ninja-build
+          g++-14
+          gcc-14
+          ccache
+          cppcheck
+          python3
+          shellcheck
+          just
+          coreutils
+        )
+
+        # clang 21 matches the local formatter/linter/compiler line.
+        # libclang-rt has sanitizer runtimes such as libclang_rt.asan.a.
+        clang_packages=(
+          clang-21
+          libclang-rt-21-dev
+          clang-format-21
+          clang-tidy-21
+        )
+
+        # runtime packages let install smoke test paths exercise desktop integrations.
+        runtime_packages=(
+          pipewire
+          alsa-utils
+          wl-clipboard
+          xclip
           libnotify-bin
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 140
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 140
-        sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-14 140
-        sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-14 140
-        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 210
-        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 210
-        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 210
-        sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-21 210
+        )
+
+        sudo apt-get install -y --no-install-recommends \
+          "${system_packages[@]}" \
+          "${clang_packages[@]}" \
+          "${runtime_packages[@]}"
+
+        # prefer llvm 21 tools without mutating system alternatives.
+        printf '%s\n' "/usr/lib/llvm-21/bin" >>"${GITHUB_PATH}"
         sudo rm -rf /var/lib/apt/lists/*

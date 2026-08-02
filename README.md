@@ -282,13 +282,13 @@ transcribing
 
 If you hear sound, see notifications, and have installed a non TTY distro, you probably have everything you need already, but check in case you spawned in a bare metal setup:
 
-* **Build Tools:** `git`, `curl`, `cmake`, `ninja-build`, `g++` (or `clang++`)
+* **Build Tools:** `git`, `curl`, `cmake`, `ninja-build`, `clang++` or `g++`
 * **Audio Recording:** `pipewire` (for `pw-record`) **or** `alsa-utils` (for `arecord`)
 * **Clipboard:** `wl-clipboard` (Wayland) **or** `xclip` (X11)
 * **Desktop Notifications:** `libnotify-bin` (for `notify-send`)
 
 > [!IMPORTANT]
-> The build requires a **C++23** capable compiler (e.g., GCC ≥ 12/14 or Clang ≥ 16/21) and CMake ≥ 3.20.
+> The build requires a **C++23** capable compiler and CMake >= 3.25. On old distros, install Clang 19+ or GCC 14+ before running `./package/install`.
 
 The default is CPU build. GPU builds need extra system packages, see [GPU builds](./docs/gpu.md).
 

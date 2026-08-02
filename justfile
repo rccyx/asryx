@@ -26,7 +26,7 @@ tidy_jobs := "2"
 	{{cpp_sources}} | xargs -0 -r clang-format --dry-run --Werror
 
 @test:
-	cmake --fresh --preset test
+	CC=clang CXX=clang++ cmake --fresh --preset test
 	cmake --build --preset test --target asryx_tests
 	ctest --preset test
 
@@ -44,8 +44,8 @@ tidy_jobs := "2"
 	python3 lint/check-line-limits.py
 	python3 lint/check-module-boundaries.py
 	python3 lint/check-owned-paths.py
-	cmake --fresh --preset release
-	cmake --fresh --preset test
+	CC=clang CXX=clang++ cmake --fresh --preset release
+	CC=clang CXX=clang++ cmake --fresh --preset test
 	{{src_tidy_sources}} | xargs -0 -r -n 1 -P "{{tidy_jobs}}" clang-tidy --config-file=.clang-tidy -p build/release
 	{{test_tidy_sources}} | xargs -0 -r -n 1 -P "{{tidy_jobs}}" clang-tidy --config-file=.clang-tidy -p build/test
 	cppcheck --enable=all --error-exitcode=1 --inline-suppr --suppress=checkersReport --suppress=missingInclude --suppress=normalCheckLevelMaxBranches --suppressions-list=cppcheck.suppressions --std=c++23 -I src -I tests -I . src tests
@@ -54,23 +54,23 @@ tidy_jobs := "2"
 	shellcheck -x package/install package/uninstall package/lib/_common.sh package/lib/_deps.sh package/lib/deps/whisper-cpp.sh package/lib/deps/libassert.sh
 
 @build:
-	cmake --fresh --preset release
+	CC=clang CXX=clang++ cmake --fresh --preset release
 	cmake --build --preset release
 
 @build-cuda:
-	cmake --fresh --preset release-cuda
+	CC=clang CXX=clang++ cmake --fresh --preset release-cuda
 	cmake --build --preset release-cuda
 
 @build-vulkan:
-	cmake --fresh --preset release-vulkan
+	CC=clang CXX=clang++ cmake --fresh --preset release-vulkan
 	cmake --build --preset release-vulkan
 
 
 @sanitizers:
-	cmake --fresh --preset asan
+	CC=clang CXX=clang++ cmake --fresh --preset asan
 	cmake --build --preset asan --target asryx_tests
 	ctest --preset asan
-	cmake --fresh --preset ubsan
+	CC=clang CXX=clang++ cmake --fresh --preset ubsan
 	cmake --build --preset ubsan --target asryx_tests
 	ctest --preset ubsan
 

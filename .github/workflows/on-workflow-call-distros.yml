@@ -6,19 +6,28 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - id: debian-trixie-c++23
+          - distro: debian-trixie
             image: debian:trixie
-          - id: fedora-latest-c++23
+            toolchain: clang-19
+          - distro: debian-trixie
+            image: debian:trixie
+            toolchain: gcc-14
+          - distro: ubuntu-24.04
+            image: ubuntu:24.04
+            toolchain: distro-default
+          - distro: fedora-latest
             image: fedora:latest
-          - id: arch-latest-c++23
+            toolchain: distro-default
+          - distro: arch-latest
             image: archlinux:latest
+            toolchain: distro-default
 
-    name: ${{ matrix.id }}
+    name: smoke / ${{ matrix.distro }} / ${{ matrix.toolchain }}
     container:
       image: ${{ matrix.image }}
 
@@ -34,6 +43,10 @@ jobs:
           if command -v apt-get >/dev/null 2>&1; then
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
+            compiler_packages=(g++)
+            if [[ "${{ matrix.toolchain }}" == "clang-19" ]]; then
+              compiler_packages=(clang)
+            fi
             apt-get install -y --no-install-recommends \
               sudo \
               ca-certificates \
@@ -42,7 +55,7 @@ jobs:
               curl \
               cmake \
               ninja-build \
-              g++ \
+              "${compiler_packages[@]}" \
               coreutils \
               pipewire \
               alsa-utils \
@@ -87,6 +100,26 @@ jobs:
             echo "no supported package manager found" >&2
             exit 1
           fi
+
+      - name: toolchain summary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if command -v clang >/dev/null 2>&1 && command -v clang++ >/dev/null 2>&1; then
+            cc=clang
+            cxx=clang++
+          elif command -v gcc >/dev/null 2>&1 && command -v g++ >/dev/null 2>&1; then
+            cc=gcc
+            cxx=g++
+          else
+            echo "missing compiler pair" >&2
+            exit 1
+          fi
+
+          cmake --version | sed -n '1p'
+          "${cc}" --version | sed -n '1p'
+          "${cxx}" --version | sed -n '1p'
 
       - name: ci user
         shell: bash

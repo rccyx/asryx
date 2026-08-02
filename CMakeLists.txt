@@ -86,7 +86,7 @@ target_link_options(asryx PRIVATE -Wl,--gc-sections)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   add_custom_command(TARGET asryx POST_BUILD
-    COMMAND strip -s $<TARGET_FILE:asryx>
+    COMMAND "${CMAKE_STRIP}" -s $<TARGET_FILE:asryx>
   )
 endif()
 
