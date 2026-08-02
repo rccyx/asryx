@@ -96,8 +96,8 @@ _asryx_require_runtime_dependency_tools() {
   _asryx_require_command curl
   _asryx_require_command sha256sum
 
-  _asryx_require_one_command "c compiler" cc gcc clang
-  _asryx_require_one_command "c++ compiler" c++ g++ clang++
+  _asryx_require_one_command "c compiler" clang gcc cc
+  _asryx_require_one_command "c++ compiler" clang++ g++ c++
 
   _asryx_require_audio_backend
   _asryx_require_clipboard_backend

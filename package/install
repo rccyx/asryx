@@ -17,6 +17,8 @@ export GIT_TERMINAL_PROMPT=0
 model_name="${ASRYX_DEFAULT_MODEL}"
 backend="cpu"
 install_dev=0
+compiler_cc=""
+compiler_cxx=""
 
 select_backend() {
   local requested="$1"
@@ -77,11 +79,32 @@ install_package_deps() {
   done
 }
 
+select_compiler() {
+  if _asryx_have clang && _asryx_have clang++; then
+    compiler_cc="clang"
+    compiler_cxx="clang++"
+    return 0
+  fi
+
+  if _asryx_have gcc && _asryx_have g++; then
+    compiler_cc="gcc"
+    compiler_cxx="g++"
+    return 0
+  fi
+
+  _asryx_die "missing C++23 compiler: install clang++ or g++"
+}
+
 build_asryx() {
   local preset="$1"
 
   _asryx_log "configuring asryx (${backend})"
-  cmake --fresh --preset "${preset}" -S "${repo_dir}"
+  cmake \
+    --fresh \
+    --preset "${preset}" \
+    -S "${repo_dir}" \
+    -DCMAKE_C_COMPILER="${compiler_cc}" \
+    -DCMAKE_CXX_COMPILER="${compiler_cxx}"
 
   _asryx_log "building asryx (${backend})"
   cmake --build "${repo_dir}/build/${preset}" --target asryx
@@ -158,6 +181,11 @@ main() {
 
   _asryx_require_runtime_dependencies
   _asryx_require_backend_dependencies "${backend}"
+
+  select_compiler
+  export CC="${compiler_cc}"
+  export CXX="${compiler_cxx}"
+  _asryx_log "compiler: $(${compiler_cxx} --version | sed -n '1p')"
 
   install_package_deps
 
