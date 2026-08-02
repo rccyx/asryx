@@ -62,6 +62,6 @@ jobs:
 
   install-uninstall:
     needs:
-      - test
-      - sanitizers
+      - shellcheck
+      - format
     uses: ./.github/workflows/on-workflow-call-distros.yml

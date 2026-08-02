@@ -12,30 +12,17 @@ runs:
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
           ca-certificates \
-          gnupg \
-          curl
-
-        llvm_keyring="/usr/share/keyrings/llvm-snapshot.gpg"
-        curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |
-          sudo gpg --dearmor -o "${llvm_keyring}"
-        printf '%s\n' \
-          "deb [signed-by=${llvm_keyring}] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" |
-          sudo tee /etc/apt/sources.list.d/llvm-toolchain-noble-21.list >/dev/null
-
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          ca-certificates \
           bash \
           git \
           curl \
           cmake \
           ninja-build \
-          g++-14 \
-          gcc-14 \
-          clang-21 \
-          llvm-21 \
-          clang-format-21 \
-          clang-tidy-21 \
+          g++ \
+          gcc \
+          clang \
+          libclang-rt-dev \
+          clang-format \
+          clang-tidy \
           ccache \
           cppcheck \
           python3 \
@@ -47,12 +34,4 @@ runs:
           wl-clipboard \
           xclip \
           libnotify-bin
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 140
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 140
-        sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-14 140
-        sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-14 140
-        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 210
-        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 210
-        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 210
-        sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-21 210
         sudo rm -rf /var/lib/apt/lists/*
