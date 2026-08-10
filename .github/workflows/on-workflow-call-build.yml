@@ -8,10 +8,28 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    name: ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            machine: x86_64
+            runner: ubuntu-24.04
+          - arch: arm64
+            machine: aarch64
+            runner: ubuntu-24.04-arm
+
     steps:
       - name: checkout
         uses: actions/checkout@v4
+
+      - name: verify architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "${{ matrix.machine }}"
 
       - name: base runner
         uses: ./.github/actions/base-runner
