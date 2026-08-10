@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   build:
-    name: build CPU / ${{ matrix.arch }}
+    name: ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false

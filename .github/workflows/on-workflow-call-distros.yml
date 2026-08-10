@@ -19,11 +19,11 @@ jobs:
             toolchain: gcc-14
           - distro: ubuntu-24.04 / x86_64
             image: ubuntu:24.04
-            toolchain: distro-default / x86_64
+            toolchain: distro-default
           - distro: fedora-latest / x86_64
             image: fedora:latest
-            toolchain: distro-default / x86_64
-          - distro: arch-latest
+            toolchain: distro-default
+          - distro: arch-latest / x86_64
             image: archlinux:latest
             toolchain: distro-default
 
