@@ -6,7 +6,7 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -14,20 +14,41 @@ jobs:
           - distro: debian-trixie
             image: debian:trixie
             toolchain: clang-19
+            arch: x86_64
+            machine: x86_64
+            runner: ubuntu-24.04
           - distro: debian-trixie
             image: debian:trixie
             toolchain: gcc-14
+            arch: x86_64
+            machine: x86_64
+            runner: ubuntu-24.04
           - distro: ubuntu-24.04
             image: ubuntu:24.04
             toolchain: distro-default
+            arch: x86_64
+            machine: x86_64
+            runner: ubuntu-24.04
           - distro: fedora-latest
             image: fedora:latest
             toolchain: distro-default
+            arch: x86_64
+            machine: x86_64
+            runner: ubuntu-24.04
           - distro: arch-latest
             image: archlinux:latest
             toolchain: distro-default
+            arch: x86_64
+            machine: x86_64
+            runner: ubuntu-24.04
+          - distro: debian-trixie
+            image: debian:trixie
+            toolchain: gcc-14
+            arch: arm64
+            machine: aarch64
+            runner: ubuntu-24.04-arm
 
-    name: smoke / ${{ matrix.distro }} / ${{ matrix.toolchain }}
+    name: smoke / ${{ matrix.distro }} / ${{ matrix.toolchain }} / ${{ matrix.arch }}
     container:
       image: ${{ matrix.image }}
 
@@ -117,6 +138,7 @@ jobs:
             exit 1
           fi
 
+          printf 'architecture: %s (%s)\n' "${{ matrix.arch }}" "$(uname -m)"
           cmake --version | sed -n '1p'
           "${cc}" --version | sed -n '1p'
           "${cxx}" --version | sed -n '1p'
