@@ -11,18 +11,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - distro: debian-trixie
+          - distro: debian-trixie / x86_64
             image: debian:trixie
             toolchain: clang-19
-          - distro: debian-trixie
+          - distro: debian-trixie / x86_64
             image: debian:trixie
             toolchain: gcc-14
-          - distro: ubuntu-24.04
+          - distro: ubuntu-24.04 / x86_64
             image: ubuntu:24.04
-            toolchain: distro-default
-          - distro: fedora-latest
+            toolchain: distro-default / x86_64
+          - distro: fedora-latest / x86_64
             image: fedora:latest
-            toolchain: distro-default
+            toolchain: distro-default / x86_64
           - distro: arch-latest
             image: archlinux:latest
             toolchain: distro-default
