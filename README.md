@@ -54,11 +54,11 @@ This program is made by a [hardcore Linux user](https://github.com/rccyx/osyx) f
 
 I don't trust black box tools, things I can't audit or fully understand the workings of.
 
-If something runs locally on my machine almost 24/7, handling sensitive data I can't randomly trust pre-compiled binaries or pull down a ton of packages with these supply chain risks everywhere.
+If something runs locally on my machine almost 24/7, handling sensitive data, I can't randomly trust pre-compiled binaries or pull down a ton of packages with these supply chain risks everywhere.
 
 I prefer to compile it on my own machine if possible, but before this I need to read the code, if it's not readable, I'm not using it.
 
-Before installing anything, I ask the exact same questions:
+Before installing anything, I ask the same questions:
 
 How do I remove this later? What if I don't like it? What does it actually do to my machine? Can I trace the calls it makes in code? What's it doing? Can I parse the code logic? Is it badly architected and going to blow up randomly? Does removal just mean `cargo uninstall <BINARY>` while orphan directories are scattered deep inside `~/.cache`, `~/.config`, or `/tmp`?
 
@@ -380,7 +380,7 @@ Inside that tiny footprint is a neural network tensor matrix multiplication logi
 
 AI model weights are separate.
 
-For a speech recognition program, that's smaller than a single 12MP iPhone JPEG photo. (`whisper-cli` itself is 2.6 MB and nowhere near this UX)
+A speech recognition program that's smaller than a single 12MP iPhone JPEG photo is basically unheard of in the [ecosystem](#comparisons). (`whisper-cli` itself is 2.6 MB and nowhere near this UX)
 
 The footprint grows only when a phase actually needs it.
 
