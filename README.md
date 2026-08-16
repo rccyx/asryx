@@ -671,7 +671,7 @@ Select a model:
 asryx --model use small.en
 ```
 
-Make a smaller copy of an installed model:
+Quantization:
 
 ```bash
 asryx --model install large-v3-turbo
@@ -752,13 +752,15 @@ Speed is relative to large on CPU.
 
 ### Quant 
 
-Supported Quantization Schemes:
+TODO: explain what is it.
+
+Supported schemes:
 
 q4_0, q4_1, q5_0, q5_1, q8_0
 
 q2_k, q3_k, q4_k, q5_k, q6_k
 
-Artifact Naming & Storage Convention:
+Stored here:
 
 Base Model File: ~/.local/share/asryx/models/ggml-<family>.bin (e.g., ggml-base.en.bin)
 
@@ -775,14 +777,11 @@ Supported quant types:
 
 | Type              | Use when                                |
 | :---------------- | :-------------------------------------- |
-| `q8_0`            | You want the safest smaller copy        |
-| `q5_0` / `q5_1`   | You want the practical small fast path  |
-| `q4_0` / `q4_1`   | You want the smallest aggressive copy   |
-| `q2_k` ... `q6_k` | You want the newer grouped GGML formats |
+| `q8_0`            | TODO:        |
+| `q5_0` / `q5_1`   | TODO:  |
+| `q4_0` / `q4_1`   | TODO:   |
+| `q2_k` ... `q6_k` | TODO: |
 
-The `q` number is roughly the number of bits used for most quantized weights. `q8_0` is larger
-and closer to the original model; `q4_0` is much smaller and more lossy. Start with `q5_0` for
-`large-v3-turbo`.
 
 `ggml-silero-v6.2.0.bin` is installed alongside the transcription models and used automatically for voice activity detection.
 
