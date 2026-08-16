@@ -8,6 +8,19 @@
 
 namespace model::store {
 
+namespace {
+
+std::filesystem::path _build_whisper_model_quantizer()
+{
+#ifdef ASRYX_BUILD_DIR
+  return std::filesystem::path(ASRYX_BUILD_DIR) / "bin/whisper-quantize";
+#else
+  return {};
+#endif
+}
+
+} // namespace
+
 yx::Result<std::filesystem::path> model_dir()
 {
   return platform::get_home_relative_path(std::string(constants::paths::models_dir_rel));
@@ -36,6 +49,23 @@ yx::Result<std::filesystem::path> whisper_model_downloader()
 {
   return whisper_source_dir().transform([](const std::filesystem::path& source_dir) {
     return source_dir / "models/download-ggml-model.sh";
+  });
+}
+
+yx::Result<std::filesystem::path> whisper_model_quantizer()
+{
+  return whisper_source_dir().transform([](const std::filesystem::path& source_dir) {
+    std::filesystem::path installed = source_dir / "build/bin/whisper-quantize";
+    if (file_exists_nonempty(installed)) {
+      return installed;
+    }
+
+    std::filesystem::path built = _build_whisper_model_quantizer();
+    if (!built.empty() && file_exists_nonempty(built)) {
+      return built;
+    }
+
+    return installed;
   });
 }
 

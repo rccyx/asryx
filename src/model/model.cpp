@@ -2,6 +2,7 @@
 
 #include "config/config.hpp"
 #include "constants/constants.hpp"
+#include "model/quantization/artifact.hpp"
 #include "model/store.hpp"
 #include "platform/fs.hpp"
 #include "platform/process.hpp"
@@ -18,9 +19,7 @@ namespace {
 
 bool _is_supported_model_name(const std::string& name)
 {
-  const auto& supported_models = get_supported_models();
-  return std::find(supported_models.begin(), supported_models.end(), name) !=
-         supported_models.end();
+  return artifact::is_supported_model_artifact(name);
 }
 
 yx::Result<void> _run_whisper_model_downloader(const std::string& name)
@@ -58,6 +57,35 @@ yx::Result<void> _run_whisper_model_downloader(const std::string& name)
   }
 
   return yx::ok();
+}
+
+yx::Result<std::vector<std::string>> _installed_quantized_model_names()
+{
+  const auto dir = store::model_dir();
+  if (!dir) {
+    return yx::fail(dir.error());
+  }
+
+  std::vector<std::string> names;
+  if (!std::filesystem::exists(*dir)) {
+    return yx::ok(names);
+  }
+
+  for (const auto& entry : std::filesystem::directory_iterator(*dir)) {
+    const std::filesystem::path& path = entry.path();
+    const std::string filename = path.filename().string();
+    if (!entry.is_regular_file() || !filename.starts_with("ggml-") || !filename.ends_with(".bin")) {
+      continue;
+    }
+
+    const std::string name = filename.substr(5, filename.size() - 9);
+    if (artifact::parse_quantized_model(name)) {
+      names.push_back(name);
+    }
+  }
+
+  std::sort(names.begin(), names.end());
+  return yx::ok(names);
 }
 
 } // namespace
@@ -100,7 +128,7 @@ bool is_supported_language(const std::string& language)
 
 bool is_english_only_model(const std::string& name)
 {
-  return name == "tiny.en" || name == "base.en" || name == "small.en" || name == "medium.en";
+  return artifact::is_english_only_artifact(name);
 }
 
 yx::Result<void> validate_config(const config::Config& cfg)
@@ -173,6 +201,17 @@ yx::Result<void> list_models()
               << (active ? " (active)" : "") << "\n";
   }
 
+  const auto quantized_models = _installed_quantized_model_names();
+  if (!quantized_models) {
+    return yx::fail(quantized_models.error());
+  }
+
+  for (const auto& model_name : *quantized_models) {
+    const bool active = model_name == config->model;
+    std::cout << "  " << (active ? "* " : "  ") << model_name << " (installed)"
+              << (active ? " (active)" : "") << "\n";
+  }
+
   std::cout << "\nVAD model:\n";
   const auto vad_installed = is_vad_model_installed();
   if (!vad_installed) {
@@ -187,7 +226,7 @@ yx::Result<void> list_models()
 
 yx::Result<void> install_model(const std::string& name)
 {
-  if (!_is_supported_model_name(name)) {
+  if (!artifact::is_supported_full_model(name)) {
     return yx::fail("unsupported model size: " + name);
   }
 

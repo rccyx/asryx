@@ -23,6 +23,7 @@ void _print_usage()
             << "  asryx --language <code|auto>    Select transcription language\n"
             << "  asryx --model list              List available model sizes\n"
             << "  asryx --model install <name>    Install a model\n"
+            << "  asryx --model quantize <name> <quant>\n"
             << "  asryx --model use <name>        Select active model\n"
             << "  asryx --model uninstall <name>  Uninstall a model\n";
 }
@@ -101,6 +102,10 @@ yx::Result<int> run(const std::vector<std::string>& args)
     if (args[1] == "uninstall") {
       return model::uninstall_model(args[2]).transform([] { return 0; });
     }
+  }
+
+  if (args.size() == 4 && args[0] == "--model" && args[1] == "quantize") {
+    return model::quantize_model(args[2], args[3]).transform([] { return 0; });
   }
 
   std::cerr << "error: invalid arguments\n\n";

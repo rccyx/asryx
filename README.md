@@ -647,6 +647,7 @@ asryx --no-pipe              # Clear post copy pipe command
 asryx --language <auto|CODE> # Set language
 asryx --model list           # List supported models
 asryx --model install <MODEL># Download model
+asryx --model quantize <MODEL> <QTYPE># Make a smaller local copy
 asryx --model use <MODEL>    # Switch model
 asryx --model uninstall <MODEL># Remove model
 asryx cancel                 # Made a mistake? Cancel active recording or transcription
@@ -668,6 +669,14 @@ Select a model:
 
 ```bash
 asryx --model use small.en
+```
+
+Make a smaller copy of an installed model:
+
+```bash
+asryx --model install large-v3-turbo
+asryx --model quantize large-v3-turbo q5_0
+asryx --model use large-v3-turbo-q5_0
 ```
 
 Remove a model:
@@ -740,6 +749,40 @@ piped and copied to clipboard.
 Speed is relative to large on CPU.
 
 `base.en` is the default. It starts quickly and covers the default English offline transcription path.
+
+### Quant 
+
+Supported Quantization Schemes:
+
+q4_0, q4_1, q5_0, q5_1, q8_0
+
+q2_k, q3_k, q4_k, q5_k, q6_k
+
+Artifact Naming & Storage Convention:
+
+Base Model File: ~/.local/share/asryx/models/ggml-<family>.bin (e.g., ggml-base.en.bin)
+
+Quantized Model File: ~/.local/share/asryx/models/ggml-<family>-<quant>.bin (e.g., ggml-base.en-q4_0.bin)
+
+
+```bash
+asryx --model install large-v3-turbo
+asryx --model quantize large-v3-turbo q5_0
+asryx --model use large-v3-turbo-q5_0
+```
+
+Supported quant types:
+
+| Type              | Use when                                |
+| :---------------- | :-------------------------------------- |
+| `q8_0`            | You want the safest smaller copy        |
+| `q5_0` / `q5_1`   | You want the practical small fast path  |
+| `q4_0` / `q4_1`   | You want the smallest aggressive copy   |
+| `q2_k` ... `q6_k` | You want the newer grouped GGML formats |
+
+The `q` number is roughly the number of bits used for most quantized weights. `q8_0` is larger
+and closer to the original model; `q4_0` is much smaller and more lossy. Start with `q5_0` for
+`large-v3-turbo`.
 
 `ggml-silero-v6.2.0.bin` is installed alongside the transcription models and used automatically for voice activity detection.
 

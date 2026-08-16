@@ -18,7 +18,8 @@ constexpr CompiledBackend kCompiledBackend = CompiledBackend::Cuda;
 constexpr CompiledBackend kCompiledBackend = CompiledBackend::Vulkan;
 #endif
 
-constexpr int _resolve_cpu_threads(unsigned int logical_threads) noexcept
+#ifdef ASRYX_BACKEND_CPU
+constexpr int _resolve_target_threads(unsigned int logical_threads) noexcept
 {
   if (logical_threads == 0) {
     return 4;
@@ -41,8 +42,8 @@ constexpr int _resolve_cpu_threads(unsigned int logical_threads) noexcept
 
   return 7;
 }
-
-constexpr int _resolve_gpu_helper_threads(unsigned int logical_threads) noexcept
+#else
+constexpr int _resolve_target_threads(unsigned int logical_threads) noexcept
 {
   if (logical_threads == 0) {
     return 4;
@@ -53,6 +54,7 @@ constexpr int _resolve_gpu_helper_threads(unsigned int logical_threads) noexcept
 
   return 4;
 }
+#endif
 
 } // namespace
 
@@ -63,13 +65,7 @@ bool uses_gpu() noexcept
 
 int resolve_threads() noexcept
 {
-  const auto logical_threads = std::thread::hardware_concurrency();
-
-  if constexpr (kCompiledBackend == CompiledBackend::Cpu) {
-    return _resolve_cpu_threads(logical_threads);
-  }
-
-  return _resolve_gpu_helper_threads(logical_threads);
+  return _resolve_target_threads(std::thread::hardware_concurrency());
 }
 
 } // namespace engine::transcription::inference
