@@ -3,8 +3,8 @@ set -Eeuo pipefail
 
 ASRYX_PACKAGE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ASRYX_REPO_DIR="$(cd -- "${ASRYX_PACKAGE_DIR}/.." && pwd -P)"
-ASRYX_LOG_PREFIX="asryx install"
-ASRYX_COMMAND_NAME="./package/install"
+ASRYX_LOG_PREFIX="asryx build"
+ASRYX_COMMAND_NAME="./package/build"
 
 # shellcheck source=package/lib/_shell.sh
 source "${ASRYX_PACKAGE_DIR}/lib/_shell.sh"
@@ -18,20 +18,16 @@ source "${ASRYX_PACKAGE_DIR}/lib/_requirements.sh"
 source "${ASRYX_PACKAGE_DIR}/lib/_dependencies.sh"
 # shellcheck source=package/lib/_build.sh
 source "${ASRYX_PACKAGE_DIR}/lib/_build.sh"
-# shellcheck source=package/lib/_assets.sh
-source "${ASRYX_PACKAGE_DIR}/lib/_assets.sh"
 
 export GIT_TERMINAL_PROMPT=0
 
 main() {
-  _asryx_parse_install_options "$@"
+  _asryx_parse_build_options "$@"
   _asryx_require_home
-  _asryx_require_install_dependencies
+  _asryx_require_build_dependencies
   _asryx_require_backend_dependencies "${ASRYX_BACKEND}"
   _asryx_install_package_deps
   _asryx_build_package
-  _asryx_install_asryx_binary "$(_asryx_build_preset)"
-  _asryx_install_default_assets
 }
 
 main "$@"

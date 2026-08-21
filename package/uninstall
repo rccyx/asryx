@@ -3,9 +3,9 @@ set -Eeuo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ASRYX_LOG_PREFIX="asryx uninstall"
-# shellcheck source=package//lib/_common.sh
-source "${script_dir}/lib/_common.sh"
-# shellcheck source=package//lib/_constants.sh
+# shellcheck source=package/lib/_shell.sh
+source "${script_dir}/lib/_shell.sh"
+# shellcheck source=package/lib/_constants.sh
 source "${script_dir}/lib/_constants.sh"
 
 main() {
