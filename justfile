@@ -18,6 +18,7 @@ cpp_sources := "find src tests -type f \\( -name '*.cpp' -o -name '*.hpp' -o -na
 src_tidy_sources := "find src -type f -name '*.cpp' -print0"
 test_tidy_sources := "find tests -type f -name '*.cpp' -print0"
 tidy_jobs := "2"
+package_shell_sources := "find package -type f \\( -name '*.sh' -o -name 'build' -o -name 'install' -o -name 'uninstall' \\) -print0"
 
 @format:
 	{{cpp_sources}} | xargs -0 -r clang-format -i
@@ -51,19 +52,16 @@ tidy_jobs := "2"
 	cppcheck --enable=all --error-exitcode=1 --inline-suppr --suppress=checkersReport --suppress=missingInclude --suppress=normalCheckLevelMaxBranches --suppressions-list=cppcheck.suppressions --std=c++23 -I src -I tests -I . src tests
 
 @shellcheck:
-	shellcheck -x package/install package/uninstall package/lib/_common.sh package/lib/_deps.sh package/lib/deps/whisper-cpp.sh package/lib/deps/libassert.sh
+	{{package_shell_sources}} | xargs -0 -r shellcheck -x
 
 @build:
-	CC=clang CXX=clang++ cmake --fresh --preset release
-	cmake --build --preset release
+	CC=clang CXX=clang++ bash ./package/build
 
 @build-cuda:
-	CC=clang CXX=clang++ cmake --fresh --preset release-cuda
-	cmake --build --preset release-cuda
+	CC=clang CXX=clang++ bash ./package/build --cuda
 
 @build-vulkan:
-	CC=clang CXX=clang++ cmake --fresh --preset release-vulkan
-	cmake --build --preset release-vulkan
+	CC=clang CXX=clang++ bash ./package/build --vulkan
 
 
 @sanitizers:

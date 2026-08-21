@@ -9,7 +9,7 @@
     {
       "name": "base",
       "hidden": true,
-      "generator": "Ninja",
+      "description": "Shared configure shape for every project preset.",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_CXX_STANDARD": "23",
@@ -20,6 +20,7 @@
       "name": "release",
       "inherits": "base",
       "displayName": "Release",
+      "description": "CPU release build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_TESTS": "OFF",
@@ -30,6 +31,7 @@
       "name": "release-cuda",
       "inherits": "release",
       "displayName": "Release CUDA",
+      "description": "CUDA release build",
       "cacheVariables": {
         "BACKEND": "cuda"
       }
@@ -38,6 +40,7 @@
       "name": "release-vulkan",
       "inherits": "release",
       "displayName": "Release Vulkan",
+      "description": "Vulkan release build",
       "cacheVariables": {
         "BACKEND": "vulkan"
       }
@@ -46,6 +49,7 @@
       "name": "test",
       "inherits": "base",
       "displayName": "Test",
+      "description": "Dev test build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "BUILD_TESTS": "ON"
@@ -55,6 +59,7 @@
       "name": "asan",
       "inherits": "base",
       "displayName": "AddressSanitizer",
+      "description": "Dev AddressSanitizer test build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "BUILD_TESTS": "ON",
@@ -65,6 +70,7 @@
       "name": "ubsan",
       "inherits": "base",
       "displayName": "UndefinedBehaviorSanitizer",
+      "description": "Dev UndefinedBehaviorSanitizer test build.",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "BUILD_TESTS": "ON",
@@ -73,22 +79,48 @@
     }
   ],
   "buildPresets": [
-    { "name": "release", "configurePreset": "release" },
-    { "name": "release-cuda", "configurePreset": "release-cuda" },
-    { "name": "release-vulkan", "configurePreset": "release-vulkan" },
-    { "name": "test", "configurePreset": "test" },
-    { "name": "asan", "configurePreset": "asan" },
-    { "name": "ubsan", "configurePreset": "ubsan" }
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "description": "Builds the configured CPU release binary."
+    },
+    {
+      "name": "release-cuda",
+      "configurePreset": "release-cuda",
+      "description": "Builds the configured CUDA release binary."
+    },
+    {
+      "name": "release-vulkan",
+      "configurePreset": "release-vulkan",
+      "description": "Builds the configured Vulkan release binary."
+    },
+    {
+      "name": "test",
+      "configurePreset": "test",
+      "description": "Builds the dev test binary."
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "description": "Builds the AddressSanitizer test binary."
+    },
+    {
+      "name": "ubsan",
+      "configurePreset": "ubsan",
+      "description": "Builds the UndefinedBehaviorSanitizer test binary."
+    }
   ],
   "testPresets": [
     {
       "name": "test",
       "configurePreset": "test",
+      "description": "Runs the regular test suite.",
       "output": { "outputOnFailure": true }
     },
     {
       "name": "asan",
       "configurePreset": "asan",
+      "description": "Runs the test suite with AddressSanitizer.",
       "environment": {
         "ASAN_OPTIONS": "detect_leaks=0"
       },
@@ -97,6 +129,7 @@
     {
       "name": "ubsan",
       "configurePreset": "ubsan",
+      "description": "Runs the test suite with UndefinedBehaviorSanitizer.",
       "output": { "outputOnFailure": true }
     }
   ]

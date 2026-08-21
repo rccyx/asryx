@@ -56,7 +56,7 @@ This program is made by a [Linux power user](https://github.com/rccyx/osyx) for 
 
 I don't trust black box tools, things I can't audit or fully understand the workings of.
 
-I'm paranoid about supply chain attacks.
+I'm not fond of supply chain attacks.
 
 I prefer to compile it on my own machine if possible, but before this I need to read the code, if it's not readable, I'm not using it.
 
