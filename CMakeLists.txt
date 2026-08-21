@@ -66,7 +66,7 @@ set(WHISPER_ALL_WARNINGS_3RD_PARTY OFF CACHE BOOL "" FORCE)
 
 # strip out ancillary binaries & networking features
 set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(WHISPER_BUILD_EXAMPLES ON CACHE BOOL "" FORCE) # quant 
 set(WHISPER_BUILD_SERVER OFF CACHE BOOL "" FORCE)
 set(WHISPER_CURL OFF CACHE BOOL "" FORCE)
 
@@ -84,6 +84,7 @@ set(WHISPER_COREML OFF CACHE BOOL "" FORCE)
 set(GGML_RPC OFF CACHE BOOL "" FORCE)
 # and disable BLAS (GGML's native cpu fallbacks handle AVX/NEON tensor math well enough)
 set(GGML_BLAS OFF CACHE BOOL "" FORCE)
+
 
 # OpenPM, use if installed, otherwise fall back to std::thread
 find_package(OpenMP)
@@ -117,17 +118,20 @@ add_executable(asryx ${SOURCES} ${HEADERS})
 target_include_directories(asryx PRIVATE "${PROJECT_SOURCE_DIR}/src")
 # compile-time branching via #ifdef blocks.
 target_compile_definitions(asryx PRIVATE ${BACKEND_DEFINITION})
-
 target_link_libraries(asryx PRIVATE whisper)
 
 if(OpenMP_FOUND)
   target_link_libraries(asryx PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
-# exceptions? what? we don't do that here
+# use whispercpp quant
+add_dependencies(asryx whisper-quantize)
+
+# exceptions? what? we don't do that here + zero dynamic type overhead
 target_compile_options(asryx PRIVATE -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections)
 target_link_options(asryx PRIVATE -Wl,--gc-sections)
 
+# CPU  hardware acceleration
 target_compile_options(asryx PRIVATE -march=native)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
