@@ -50,8 +50,8 @@ set(GGML_CUDA OFF CACHE BOOL "" FORCE)
 set(GGML_VULKAN OFF CACHE BOOL "" FORCE)
 set(WHISPER_ALL_WARNINGS OFF CACHE BOOL "" FORCE)
 set(WHISPER_ALL_WARNINGS_3RD_PARTY OFF CACHE BOOL "" FORCE)
-set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE) 
+set(WHISPER_BUILD_EXAMPLES ON CACHE BOOL "" FORCE) # TODO, I'm sure there's a better way
 set(WHISPER_BUILD_SERVER OFF CACHE BOOL "" FORCE)
 set(WHISPER_CURL OFF CACHE BOOL "" FORCE)
 set(WHISPER_SDL2 OFF CACHE BOOL "" FORCE)
@@ -78,9 +78,11 @@ add_executable(asryx ${SOURCES} ${HEADERS})
 target_include_directories(asryx PRIVATE "${PROJECT_SOURCE_DIR}/src")
 target_compile_definitions(
   asryx
-  PRIVATE ASRYX_SOURCE_DIR="${PROJECT_SOURCE_DIR}" ${BACKEND_DEFINITION}
+  PRIVATE ASRYX_SOURCE_DIR="${PROJECT_SOURCE_DIR}" ASRYX_BUILD_DIR="${CMAKE_BINARY_DIR}"
+          ${BACKEND_DEFINITION}
 )
 target_link_libraries(asryx PRIVATE whisper)
+add_dependencies(asryx whisper-quantize)
 target_compile_options(asryx PRIVATE -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections)
 target_link_options(asryx PRIVATE -Wl,--gc-sections)
 

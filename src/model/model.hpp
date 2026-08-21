@@ -13,6 +13,7 @@ struct Config;
 namespace model {
 
 const std::vector<std::string>& get_supported_models();
+const std::vector<std::string>& get_supported_quant_types();
 const std::vector<std::string>& get_supported_languages();
 yx::Result<std::string> get_model_path(const std::string& name);
 yx::Result<std::string> get_vad_model_path();
@@ -25,6 +26,7 @@ yx::Result<void> validate_vad_model();
 yx::Result<std::string> transcription_language_for(const config::Config& cfg);
 yx::Result<void> list_models();
 yx::Result<void> install_model(const std::string& name);
+yx::Result<void> quantize_model(const std::string& name, const std::string& quant);
 yx::Result<void> use_model(const std::string& name);
 yx::Result<void> use_language(const std::string& language);
 yx::Result<void> uninstall_model(const std::string& name);

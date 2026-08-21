@@ -1,5 +1,17 @@
 # GPU Acceleration Setup
 
+Just letting you know, the CPU build is ~2.1 MB. A Vulkan or CUDA build is ~56 MB.
+
+And the reason is that GGML's Vulkan backend bakes in thousands of precompiled SPIR-V shader permutations, one for each combination of tensor shape and op it needs to dispatch on your GPU, directly into C++ static byte arrays inside the binary. 
+
+It does this so it can hand execution to the display driver without wasting time compiling shaders on the fly at runtime or requiring external shader files on disk. 
+
+The CUDA backend carries the same thing in precompiled kernel binaries for its tensor ops. Both get statically linked straight into the final executable. 
+
+That's why it baloons. 
+
+There is zero extra application bloat beyond what the backend itself requires to talk directly to the GPU hardware.
+
 To run this with GPU support, you need your GPU's compiler and system libraries installed on your system before running the installer.
 
 Prefer CUDA if you have NVIDIA, and Vulkan for the rest, AMD, and Intel (also NVIDIA).

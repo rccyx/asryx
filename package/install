@@ -123,6 +123,19 @@ install_asryx_binary() {
   install -m 0755 "${src_bin}" "${dst_bin}"
 }
 
+install_whisper_quantizer() {
+  local preset="$1"
+  local src_bin="${repo_dir}/build/${preset}/bin/whisper-quantize"
+  local dst_bin
+  dst_bin="$(_asryx_home_path "${ASRYX_WHISPER_DIR_REL}")/build/bin/whisper-quantize"
+
+  [[ -x "${src_bin}" ]] || _asryx_die "missing built quantizer: ${src_bin}"
+  _asryx_ensure_dir "$(dirname "${dst_bin}")"
+
+  _asryx_log "installing ${dst_bin}"
+  install -m 0755 "${src_bin}" "${dst_bin}"
+}
+
 write_default_config_if_missing() {
   local cfg
   cfg="$(_asryx_config_path)"
@@ -194,6 +207,7 @@ main() {
 
   build_asryx "${preset}"
   install_asryx_binary "${preset}"
+  install_whisper_quantizer "${preset}"
   write_default_config_if_missing
   install_vad_model
   install_and_select_model

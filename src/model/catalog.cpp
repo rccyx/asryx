@@ -1,4 +1,5 @@
 #include "model/model.hpp"
+#include "model/quantization/artifact.hpp"
 
 #include <string>
 #include <vector>
@@ -11,6 +12,11 @@ const std::vector<std::string>& get_supported_models()
       "tiny.en", "tiny",     "base.en",  "base",     "small.en",       "small", "medium.en",
       "medium",  "large-v1", "large-v2", "large-v3", "large-v3-turbo", "large"};
   return models;
+}
+
+const std::vector<std::string>& get_supported_quant_types()
+{
+  return artifact::supported_quant_types();
 }
 
 const std::vector<std::string>& get_supported_languages()

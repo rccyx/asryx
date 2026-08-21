@@ -18,7 +18,8 @@ target_include_directories(
   asryx_tests
   PRIVATE "${PROJECT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}"
 )
-target_compile_definitions(asryx_tests PRIVATE ${BACKEND_DEFINITION})
+target_compile_definitions(asryx_tests PRIVATE ASRYX_BUILD_DIR="${CMAKE_BINARY_DIR}"
+                                               ${BACKEND_DEFINITION})
 target_link_libraries(asryx_tests PRIVATE libassert::assert)
 
 enable_warnings(asryx_tests)
