@@ -116,6 +116,7 @@ void run_test_app()
       {"--model", "use", "base.en"},
       {"--model", "uninstall", "tiny.en"},
       {"--pipe-to", "tee -a ~/x.txt"},
+      {"--prompt", "Project Atlas, Kubernetes, PostgreSQL, OAuth"},
       {"cancel"},
   };
   assert_control_commands_do_not_record(control_commands);
@@ -124,12 +125,20 @@ void run_test_app()
   ASSERT(loaded_config.has_value());
   auto cfg = *loaded_config;
   ASSERT(cfg.pipe_to == std::string("tee -a ~/x.txt"));
+  ASSERT(cfg.prompt == std::string("Project Atlas, Kubernetes, PostgreSQL, OAuth"));
 
   assert_control_command_does_not_record({"--no-pipe"});
   loaded_config = config::load_config();
   ASSERT(loaded_config.has_value());
   cfg = *loaded_config;
   ASSERT(cfg.pipe_to == std::string(""));
+  ASSERT(cfg.prompt == std::string("Project Atlas, Kubernetes, PostgreSQL, OAuth"));
+
+  assert_control_command_does_not_record({"--no-prompt"});
+  loaded_config = config::load_config();
+  ASSERT(loaded_config.has_value());
+  cfg = *loaded_config;
+  ASSERT(cfg.prompt == std::string(""));
 
   clean_runtime_files();
   exit_code = app::run({"--output", "clipboard"});

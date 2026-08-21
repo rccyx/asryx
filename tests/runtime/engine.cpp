@@ -28,6 +28,13 @@ yx::Result<bool> stop_recording(pid_t pid)
   return yx::ok(state.stop_result && pid == getpid());
 }
 
+yx::Result<void> validate_prompt(const std::string& model_path, const std::string& prompt)
+{
+  (void)model_path;
+  (void)prompt;
+  return yx::ok();
+}
+
 yx::Result<std::string> transcribe(const TranscriptionRequest& request)
 {
   auto& state = runtime_test::state();

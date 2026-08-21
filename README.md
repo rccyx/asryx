@@ -96,7 +96,7 @@ I don't need any of this. This program relies on delegation. Linux already has w
 
 If you're running a physical daily Linux machine, those native tools are already installed and working.
 
-The reason this is written in C++ is because whisper.cpp integrates exceptionally well. No need for binds, plus it runs fast. I removed some compilation bloat to keep the footprint lightweight though. Whisper works well for now, though I might switch to Nvidia's Parakeet in the future when C++ ports for it stabilize, to handle things like streaming, improved speed, etc. 
+The reason this is written in C++ is because whisper.cpp integrates exceptionally well. No need for binds, plus it runs fast. I removed some compilation bloat to keep the footprint lightweight though.
 
 But even if the backend changes, the CLI and overall user experience stay identical.
 
@@ -662,6 +662,8 @@ asryx status                 # outputs "idle" or "recording" or "transcribing"
 asryx --pipe-to '<COMMAND>'  # Set post copy pipe command
 asryx --no-pipe              # Clear post copy pipe command
 asryx --language <auto|CODE> # Set language
+asryx --prompt '<TEXT>'      # Set Whisper prompt
+asryx --no-prompt            # Clear Whisper prompt
 asryx --model list           # List supported models
 asryx --model install <MODEL># Download model
 asryx --model quantize <MODEL> <QTYPE> # Make a smaller local copy
@@ -708,6 +710,22 @@ Set transcription language:
 asryx --language auto
 asryx --language en
 asryx --language de
+```
+
+Set a Whisper [prompt](https://developers.openai.com/cookbook/examples/whisper_prompting_guide) for uncommon or domain-specific words:
+
+```bash
+asryx --prompt 'Project Atlas, Kubernetes, PostgreSQL, OAuth'
+# or something like
+asryx --prompt "We build low-level systems using C++23, io_uring, PostgreSQL, and gRPC."
+```
+
+Prompts over 224 tokens are rejected.
+
+Clear the prompt:
+
+```bash
+asryx --no-prompt
 ```
 
 Set the post copy pipe hook:

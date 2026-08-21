@@ -1,6 +1,7 @@
 #include "app/app.hpp"
 
 #include "config/config.hpp"
+#include "engine/engine.hpp"
 #include "model/model.hpp"
 #include "runtime/runtime.hpp"
 
@@ -21,6 +22,8 @@ void _print_usage()
             << "  asryx --pipe-to <command>       Set post-copy pipe command\n"
             << "  asryx --no-pipe                 Clear post-copy pipe command\n"
             << "  asryx --language <code|auto>    Select transcription language\n"
+            << "  asryx --prompt <text>           Set Whisper prompt\n"
+            << "  asryx --no-prompt               Clear Whisper prompt\n"
             << "  asryx --model list              List available model sizes\n"
             << "  asryx --model install <name>    Install a model\n"
             << "  asryx --model quantize <name> <quant>\n"
@@ -44,6 +47,32 @@ yx::Result<void> _clear_pipe_to()
 {
   return config::load_config().and_then([](config::Config config) {
     config.pipe_to.clear();
+    return config::save_config(config);
+  });
+}
+
+yx::Result<void> _set_prompt(const std::string& prompt)
+{
+  if (prompt.empty()) {
+    return yx::fail("--prompt requires a non-empty prompt string");
+  }
+
+  return config::load_config().and_then([&prompt](config::Config config) {
+    return model::get_model_path(config.model)
+        .and_then([&prompt](const std::string& model_path) {
+          return engine::validate_prompt(model_path, prompt);
+        })
+        .and_then([&config, &prompt] {
+          config.prompt = prompt;
+          return config::save_config(config);
+        });
+  });
+}
+
+yx::Result<void> _clear_prompt()
+{
+  return config::load_config().and_then([](config::Config config) {
+    config.prompt.clear();
     return config::save_config(config);
   });
 }
@@ -78,6 +107,14 @@ yx::Result<int> run(const std::vector<std::string>& args)
 
   if (args.size() == 1 && args[0] == "--no-pipe") {
     return _clear_pipe_to().transform([] { return 0; });
+  }
+
+  if (args.size() == 2 && args[0] == "--prompt") {
+    return _set_prompt(args[1]).transform([] { return 0; });
+  }
+
+  if (args.size() == 1 && args[0] == "--no-prompt") {
+    return _clear_prompt().transform([] { return 0; });
   }
 
   if (args.size() == 2 && args[0] == "--model") {

@@ -27,6 +27,7 @@ private:
   explicit Context(std::unique_ptr<_context_state> state);
 
   friend yx::Result<Context> load_context(const std::string& model_path);
+  friend yx::Result<int> prompt_token_count(const Context& ctx, const std::string& prompt);
   friend bool transcribe(const TranscribeInput& input);
   friend std::string read_output(const Context& ctx);
 
@@ -49,6 +50,7 @@ struct SpeechInput
 };
 
 yx::Result<Context> load_context(const std::string& model_path);
+yx::Result<int> prompt_token_count(const Context& ctx, const std::string& prompt);
 bool transcribe(const TranscribeInput& input);
 std::string read_output(const Context& ctx);
 double detected_speech_seconds(const SpeechInput& input);
