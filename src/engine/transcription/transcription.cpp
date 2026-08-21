@@ -12,6 +12,34 @@
 
 namespace engine::transcription {
 
+namespace {
+
+constexpr int MAX_PROMPT_TOKENS = 224;
+
+yx::Result<void> _validate_prompt_tokens(int tokens)
+{
+  if (tokens <= MAX_PROMPT_TOKENS) {
+    return yx::ok();
+  }
+
+  return yx::fail("prompt is " + std::to_string(tokens) + " tokens, maximum is " +
+                  std::to_string(MAX_PROMPT_TOKENS));
+}
+
+} // namespace
+
+yx::Result<void> validate_prompt(const std::string& model_path, const std::string& prompt)
+{
+  auto ctx = whisper::load_context(model_path);
+  if (!ctx) {
+    return yx::fail(ctx.error());
+  }
+
+  return whisper::prompt_token_count(*ctx, prompt).and_then([](int tokens) {
+    return _validate_prompt_tokens(tokens);
+  });
+}
+
 yx::Result<std::string> run(const TranscriptionRequest& request)
 {
   const auto valid_request = request::validate(request);

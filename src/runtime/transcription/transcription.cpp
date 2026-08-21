@@ -44,6 +44,7 @@ yx::Result<TranscriptionContext> _build_context(const std::filesystem::path& run
                                     .vad_model_path = std::move(vad_model_path),
                                     .wav_path = session::recorder_wav_path(runtime_dir).string(),
                                     .language = language,
+                                    .prompt = config.prompt,
                                     .cancel_marker_path =
                                         session::cancel_marker_path(runtime_dir).string()}
                     };

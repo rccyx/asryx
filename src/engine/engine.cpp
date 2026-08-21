@@ -17,6 +17,11 @@ yx::Result<bool> stop_recording(pid_t pid)
   return recorder::stop(pid);
 }
 
+yx::Result<void> validate_prompt(const std::string& model_path, const std::string& prompt)
+{
+  return transcription::validate_prompt(model_path, prompt);
+}
+
 yx::Result<std::string> transcribe(const TranscriptionRequest& request)
 {
   return transcription::run(request);

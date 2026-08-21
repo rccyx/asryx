@@ -13,6 +13,7 @@ struct Config
   std::string model = std::string(constants::config::default_model);
   std::string language = std::string(constants::config::default_language);
   std::string pipe_to;
+  std::string prompt;
 };
 
 yx::Result<Config> load_config();

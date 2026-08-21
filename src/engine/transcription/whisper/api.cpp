@@ -4,6 +4,7 @@
 #include "engine/transcription/inference/backend.hpp"
 
 #include <filesystem>
+#include <string>
 #include <utility>
 
 #ifdef __GNUC__
@@ -127,6 +128,7 @@ whisper_full_params _transcription_params(const TranscribeInput& input, whisper_
 
   params.language = _language(ctx, input.request->language);
   params.detect_language = false;
+  params.initial_prompt = input.request->prompt.empty() ? nullptr : input.request->prompt.c_str();
 
   params.vad = input.use_vad;
   params.vad_model_path = input.request->vad_model_path.c_str();
@@ -169,6 +171,17 @@ yx::Result<Context> load_context(const std::string& model_path)
   }
 
   return yx::ok(Context(std::move(state)));
+}
+
+yx::Result<int> prompt_token_count(Context& ctx, const std::string& prompt)
+{
+  whisper_context* const raw_ctx = ctx._state->ctx.get();
+  const int count = whisper_tokenize(raw_ctx, prompt.c_str(), nullptr, 0);
+  if (count > 0) {
+    return yx::ok(count);
+  }
+
+  return yx::ok(-count);
 }
 
 bool transcribe(const TranscribeInput& input)
