@@ -10,7 +10,7 @@
 
 Ultra-lightweight C++ speech recognition program, offline and native for Linux.
 
-The program is a [CLI](#cli) that's also a stateless toggle (you can keybind to Hyprland, Sway, i3, GNOME, KDE, etc).
+The program is a [CLI](#cli) that's also a stateless toggle (you can [keybind](#keybind) to Hyprland, Sway, i3, GNOME, KDE, etc).
 
 Runs local transcription against [GGML Whisper](https://github.com/ggml-org/whisper.cpp), linked in [process](/src/engine/transcription/whisper/api.cpp).
 
@@ -18,13 +18,13 @@ Daemonless, and there is no ASR server, background daemon, hosted API, cloud, Py
 
 Nothing.
 
-Runs on the CPU by default. [GPU](/docs/gpu.md) is also supported if you install/have the right drivers.
+Runs on the CPU by default. Inference throughput is sub-second on modern hardware (AVX2/AVX-512).
 
-Inference throughput is sub-second on modern hardware (AVX2/AVX-512 on CPUs and CUDA or Vulkan on GPUs).
+The final ELF binary is ~2.1mb (here's my issue with [bloat](#my-issues-with-the-ecosystem)).
 
-The final ELF binary is ~2.1mb (more on this [below](#my-issues-with-the-ecosystem)).
+Works out of the box, no setup needed.
 
-Easily [installed](#installation), one command, you compile the program on your own machine (native to your architecture), no package manager needed, and no external libraries/packages.
+Just one command [install](#installation), you compile the program on your own machine (native to your architecture).
 
 This is just pure C++ (albeit C++23) and standard Linux [tools](#dependencies).
 
@@ -38,31 +38,36 @@ You press a key once, say you hit `Alt + W` (or whatever keybind you set the tog
 
 You can walk around and talk (no need to press and hold anything) as long as you want (~9MB RAM talking).
 
-When done, hit `Alt + W` again, it launches, stops recording, feeds the audio buffer to the local [Whisper](https://github.com/openai/whisper) models (you choose/download through the CLI), along with a [VAD](https://developers.openai.com/api/docs/guides/realtime-vad) model (removes non-speech, noises, etc), retries on hallucinations, copies the text, notifies you (or pipes to another command also), removes everything, and kills itself again (back to 0 MB RAM).
+When done, hit `Alt + W` again, it launches, stops recording, feeds the audio buffer to the local [Whisper](https://github.com/openai/whisper) models (you choose/download through the CLI), along with a [VAD](https://developers.openai.com/api/docs/guides/realtime-vad) model (removes non-speech, noises, etc), retries on hallucinations, copies the text, notifies you (or pipes to another command), removes everything, and kills itself again (back to 0 MB RAM).
+
+Optional [advanced options](#advanced) also exists (GPU acceleration, quantization, build tuning). Comes with caveats though.
 
 ## My issues with the ecosystem
 
 ### One
 
-The Unix philosophy is nonexistent, especially for Linux, what happened to "do one thing, do it well"?
+The Unix philosophy is nonexistent, especially for Linux, what happened to "do one thing and do it well"?
 
-Almost every tool I see is trying to support every workflow, OS, inference engine, deployment topology, cloud provider, hypothetical user requirement, trying to max out the most theoretical total addressable market imaginable, serving everyone, yet no one.
+Almost every tool I see is trying to support every workflow, OS, inference engine, deployment topology, cloud provider, hypothetical user requirement, trying to max out the most theoretical market imaginable, serving everyone, yet no one.
 
-This program is made by a [hardcore Linux user](https://github.com/rccyx/osyx) for hardcore Linux users.
+This program is made by a [Linux power user](https://github.com/rccyx/osyx) for Linux power users.
 
 ### Two
 
 I don't trust black box tools, things I can't audit or fully understand the workings of.
 
-If something runs locally on my machine almost 24/7, handling sensitive data, I can't randomly trust pre-compiled binaries or pull down a ton of packages with these supply chain risks everywhere.
+I'm paranoid about supply chain attacks.
 
 I prefer to compile it on my own machine if possible, but before this I need to read the code, if it's not readable, I'm not using it.
 
-Before installing anything, I ask the same questions:
+Also, I ask:
 
-How do I remove this later? What if I don't like it? What does it actually do to my machine? Can I trace the calls it makes in code? What's it doing? Can I parse the code logic? Is it badly architected and going to blow up randomly? Does removal just mean `cargo uninstall <BINARY>` while orphan directories are scattered deep inside `~/.cache`, `~/.config`, or `/tmp`?
+- How do I remove this later? What if I don't like it? 
+- What does it actually do to my machine? Can I trace the calls it makes in code? What's it doing? Can I parse the code logic? 
+- Is it badly architected and going to blow up randomly? 
+- Does removal just mean `cargo uninstall <BINARY>` while orphan directories are scattered deep inside `~/.cache`, `~/.config`, or `/tmp`? 
 
-See? Many questions.
+An many more questions.
 
 So, the codebase is written in a way that's easily parseable (reads like pseudocode + no 3k LOC files doing 50 different things).
 
@@ -71,31 +76,35 @@ So, the codebase is written in a way that's easily parseable (reads like pseudoc
 
 <br/>
 
-I wanted to build the best possible solution for hardcore Linux users who rely on keybinds all day and demand hyper-efficiency.
+I wanted to build the best possible solution for Linux users who rely on keybinds all day and demand hyper-efficiency.
 
 There's no macOS or Windows support, no GUIs, and zero overhead. It simply follows a strict bare metal philosophy to make everything intuitively fast.
 
-Even on my own daily driver , I stripped out the top bar to maximize speed .
+Even on my own daily driver, I don't even use a top bar to maximize speed. So I defintely won't click a GUI to transcribe my voice.
 
-I compile and build a lot of software from scratch, way beyond just dumping dots or shell scripts. I've open sourced some of these tools recently, and this project is one of them.
+When I use a machine, I just want to get straight to the point. Everything on my desktop comes through notifications, like getting a heads-up when my battery runs low for example. I use Hyprland to switch between workspaces super fast and wanted a speech recognition tool that fit that exact workflow.
 
-When I use software, I just want to get straight to the point. Everything on my desktop comes through notifications, like getting a heads-up when my battery runs low for example. I use Hyprland to switch between workspaces super fast and wanted a speech recognition tool that fit that exact workflow.
-
-I couldn't find anything like it anywhere.
+I couldn't find anything like it anywhere (read [comparison](#comparisons)).
 
 Also, I don't want to reinvent the wheel.
 
-Installing a massive third-party audio library just to capture sound makes no sense, and I didn't want extra libs or third-party bindings just to show notifications.
+Installing a massive third-party audio library just to capture sound makes no sense. Why would I need extra libs or 3rd party bindings just to show notifications if standard tooling supports it?
 
-People usually choose a tool and force a solution onto it. Take Rust, for example. You need to record audio, so you embed a bloated library like cpal or rodio. You need to copy text, so you embed a cross-platform clipboard manager. You need desktop alerts, so you embed a notification framework and try to make it cross-platform anyway, because why not?
+People usually choose a tool and force a solution onto it. Take Rust, for example. You need to record audio, so you embed library like cpal or rodio. You need to copy text, so you embed a cross-platform clipboard manager. You need desktop alerts, so you embed a notification framework and try to make it cross-platform anyway, because why not?
 
 I don't need any of this. This program relies on delegation. Linux already has world-class tools running natively, so why not use them?
 
 If you're running a physical daily Linux machine, those native tools are already installed and working.
 
-I chose C++ because whisper.cpp integrates exceptionally well. It binds directly to the codebase and runs fast. I removed some compilation bloat to keep the footprint lightweight though. Whisper works well for now, though I might switch to Nvidia's Parakeet in the future when C++ ports for it stabilize. Even if the backend changes to handle things like streaming, the CLI and overall user experience stay identical.
+The reason this is written in C++ is because whisper.cpp integrates exceptionally well. No need for binds, plus it runs fast. I removed some compilation bloat to keep the footprint lightweight though. Whisper works well for now, though I might switch to Nvidia's Parakeet in the future when C++ ports for it stabilize, to handle things like streaming, improved speed, etc. 
 
-Managing session state without forcing users to handle complex configuration files or leaving a daemon sitting in memory required a stateless toggle architecture. The program acts as an orchestrator over standard Linux tools. You delegate tasks out to standard utilities and avoid embedding redundant features into a massive binary.
+But even if the backend changes, the CLI and overall user experience stay identical.
+
+Now, building this, I was thinking about how I should go about managing state. I want to tap a key, talk, then tap again. There should be a way to keep state to know if I'm recording, transcribing, or idling. There should be a mechanism to have some sort of a mutex or guard, also so it doesn't corrupt files, etc.
+
+It turns out, for this, a stateless toggle is the way.
+
+The program acts as an orchestrator over standard Linux tools. You delegate tasks out to standard utilities and avoid embedding redundant features into a massive binary.
 
 The binary starts when you invoke it, performs one operation, and exits.
 
@@ -165,7 +174,7 @@ All of these files are disposable session state, except `error.log`, since it's 
 
 ## Recording and transcription
 
-The first invocation cleans any abandoned payload from an older dead session, reads the configuration, checks that the selected Whisper model and VAD model are installed, and starts a native recorder.
+The first invocation cleans any abandoned payload from an older dead session, reads the configuration, checks that the selected models are installed, and starts a native recorder.
 
 PipeWire is preferred. ALSA is the fallback.
 
@@ -279,13 +288,13 @@ If the custom command fails, the transcript has already been copied. The program
 
 The source relies heavily on `std::expected`.
 
-Errors are first class citizens. There's no "do these 55 steps and catch all" just to say "oops something happened."
+Errors are first class citizens here. There's no "do these 55 steps and catch all" just to say "oops something happened."
 
 Quite a refresher from exceptions to say the least.
 
 Also, there's a bit of perf gains here, since errors are handled at compile-time as value types rather than runtime exceptions, keeping the execution path extremely tight.
 
-Every failure is known. Been running this for a long time at this point, never seen a failure. But in the rare case it happens there's a log file that shows the failure.
+Every failure is known. Been running this for a long time at this point, never seen a failure. But in the rare case it happens there's a log file `$XDG_RUNTIME_DIR/asryx/error.log` that shows the failure.
 
 Every step is accounted for. So you know exactly what happened in case it happens.
 
@@ -326,9 +335,9 @@ If the recorder produced anything in `rec.err`, that output is included too.
 
 The disposable payload is then removed and the lock is released. The log remains.
 
-</details>
+## Diagram
 
-TL;DR here's a diagram.
+TL;DR:
 
 ```mermaid
 flowchart LR
@@ -360,6 +369,9 @@ flowchart LR
     class Z,X1,R terminal
 ```
 
+
+</details>
+
 ### Three
 
 I don't want to deal with Python venv hell or run containers. Nor do I want a CLI with 70 flags to memorize, a new "best" model dropping every other week from the 8th provider, or a README that requires me to weigh options for "hybrid CTC/DTC decoders, 0.6B vs 1B parameter counts, EOU detection, RNN..." I have no time for this.
@@ -376,7 +388,7 @@ It also had to be as light as possible. Speaking of which:
 
 The final compiled binary is ~2.1 MB.
 
-Inside that tiny footprint is a neural network tensor matrix multiplication logic, execution logic, the application runtime, process management, a custom zero allocation WAV parser, and more.
+That footprint contains a neural network tensor matrix multiplication logic, execution logic, the application runtime, process management, a custom zero allocation WAV parser, and more.
 
 AI model weights are separate.
 
@@ -406,7 +418,7 @@ The footprint returns to zero.
 
 It prints either "recording", "transcribing" or "idle".
 
-So what's this for?
+Why even mention it? What's this for? 
 
 This output can be used for status surfaces such as Waybar or Polybar, [control centers](https://github.com/rccyx/ctrlyx), or even high frequency tmux/shell loops every few milliseconds without impacting system load or CPU thermals.
 
@@ -425,7 +437,7 @@ docker ps               7.50ms  (Daemon IPC & socket serialization)
 python3 -c "hello"       8.90ms  (VM runtime initialization)
 ```
 
-But that's nothing, when it comes to full apps, Python, Node, JVM, and Chromium runtime apps are quite heavy.
+Is this apples to oranges? Yes. But my point is when it comes to full apps, Python, Node, JVM, and Chromium runtime apps are quite heavy and bloated.
 
 ### Comparisons
 
@@ -437,19 +449,21 @@ Go anywhere between ~200 MB and ~600 MB of pure unadulterated bloat, take second
 
 #### Rust and Go STT CLIs/daemons
 
-Start at about 10 MB and go up to 40 MB.
+Start at about 10 MB and go up to 40 MB. Voxtype for example is 12MB. 
 
-Plus these are usually bloated, they have to bind or rely on heavy deps, and mostly, or realistically, chosen because LLMs know Rust better than C++.
+But size doesn't matter, my issue is bloat and unsophistication.
 
-When I review these codebases for possible usage, I'm flabbergasted. The software does everything for everyone (LLM feature creep fatigue) which means they do nothing for no one.
+These are usually bloated, they have to bind or rely on heavy deps, and mostly, or realistically, chosen because LLMs know Rust better than C++ with the alibi of "memory safety and cargo ecosystem", which means more supply chain attacks. `arrayref` got hit in August 2026.
+
+When I look at these codebases, I'm flabbergasted. The software does everything for everyone (LLM feature creep fatigue) which means it does nothing for no one.
 
 I open a file and see a single 2.5k line file with CLI dispatching, config loading, 200 lines of manual flag overrides (copy-pasted), daemon PID management, inline DSP resampling, notifications wired straight to a status bar's JSON format (hardcoded), an update checker, first launch macOS setup, and more.
 
-That's all I need to know. Not even Gemini 3 Pro has enough context to understand what's going on here let alone me.
+That's all I need to know. Not even Gemini 3 Pro has enough context to understand what's going on here, let alone me. 
 
 #### Python
 
-Aside from env hell, and the hurdles you have to go through to set it up, it takes seconds just to run `import pytorch` and initialize it into memory before touching an audio file or doing anything. By the time Python loads, `asryx` has finished processing a five-second sentence (cold).
+Aside from env hell, and aside from README hell, and all the hurdles you have to go through to set it up, it takes seconds just to run `import pytorch` and initialize it into memory before touching an audio file or doing anything. By the time Python loads, `asryx` has probably finished processing a 5s sentence (cold).
 
 Also, Python `faster-whisper` and similar setups pull anywhere from 150 MB to 4 GB+ of PyTorch, CTranslate2 bindings, NumPy, and CUDA runtimes before they're even ready to run.
 
@@ -459,7 +473,7 @@ Most of these AI and transcription setups make you run a background server (API 
 
 #### SaaS
 
-Privacy + A round trip cloud API request requires DNS resolution + audio payload upload, queue processing, and transcript response download + needs a stable network + I'm definitely not sending my voice to a server over 150 times a day.
+I'm definitely not sending my voice to a server.
 
 ## Installation
 
@@ -469,7 +483,7 @@ Clone the repository
 git clone https://github.com/rccyx/asryx && cd asryx
 ```
 
-Compile and install (defaults to the CPU)
+Compile and install
 
 ```bash
 bash ./package/install
@@ -481,13 +495,6 @@ That's it.
 > If you've changed your mind, see the [uninstaller](#uninstallation).
 
 CPU inference works out of the box on x86_64 and ARM64.
-
-GPU acceleration is optional but highly recommended:
-
-- **CUDA** for supported NVIDIA GPUs.
-- **Vulkan** as the cross-vendor backend for supported NVIDIA, AMD, and Intel GPUs.
-
-See the [GPU setup](/docs/gpu.md) for the required drivers and build dependencies.
 
 > [!NOTE]
 > `main` is branch protected and force pushes are disabled. Anything merged into `main` builds and installs. If you want a versioned snapshot instead (outlining features and everything), see [releases](https://github.com/rccyx/asryx/releases).
@@ -534,6 +541,18 @@ Model downloads pull from [Hugging Face](https://huggingface.co/ggerganov/whispe
 
 </details>
 
+## Advanced
+
+None of this is required. 
+
+The intended UX for 99% of use cases is running `./package/install`, setting a [keybind](#keybind), and forgetting the software even exists for a year. 
+
+But just in case:
+
+* **GPU Acceleration (Vulkan / CUDA):** See [GPU Setup](/docs/gpu.md). Requires your own drivers, toolkits, and dev headers installed on your host. Comes with a size tradeoff.
+* **Model Quantization:** See [Quantization](/docs/quantization.md). Smaller, faster local model weights at the cost of minimal precision.
+* **Build-Time Tuning:** See [Optimizations](/docs/optimizations.md). Enables OpenMP, ccache, and mold for faster compilation and tighter loop scheduling on multi-core CPUs.
+
 ## Dependencies
 
 If you hear sound, see notifications, and have installed a non-TTY distro, you probably have everything you need already, but check in case you spawned in a bare metal box:
@@ -551,9 +570,7 @@ If you hear sound, see notifications, and have installed a non-TTY distro, you p
 
 ### Checks
 
-Just to make sure, let's check your audio stack.
-
-Check what you have:
+Just to make sure, check the audio stack:
 
 ```bash
 which pw-record || which arecord
@@ -647,7 +664,7 @@ asryx --no-pipe              # Clear post copy pipe command
 asryx --language <auto|CODE> # Set language
 asryx --model list           # List supported models
 asryx --model install <MODEL># Download model
-asryx --model quantize <MODEL> <QTYPE># Make a smaller local copy
+asryx --model quantize <MODEL> <QTYPE> # Make a smaller local copy
 asryx --model use <MODEL>    # Switch model
 asryx --model uninstall <MODEL># Remove model
 asryx cancel                 # Made a mistake? Cancel active recording or transcription
@@ -750,39 +767,6 @@ Speed is relative to large on CPU.
 
 `base.en` is the default. It starts quickly and covers the default English offline transcription path.
 
-### Quant 
-
-TODO: explain what is it.
-
-Supported schemes:
-
-q4_0, q4_1, q5_0, q5_1, q8_0
-
-q2_k, q3_k, q4_k, q5_k, q6_k
-
-Stored here:
-
-Base Model File: ~/.local/share/asryx/models/ggml-<family>.bin (e.g., ggml-base.en.bin)
-
-Quantized Model File: ~/.local/share/asryx/models/ggml-<family>-<quant>.bin (e.g., ggml-base.en-q4_0.bin)
-
-
-```bash
-asryx --model install large-v3-turbo
-asryx --model quantize large-v3-turbo q5_0
-asryx --model use large-v3-turbo-q5_0
-```
-
-Supported quant types:
-
-| Type              | Use when                                |
-| :---------------- | :-------------------------------------- |
-| `q8_0`            | TODO:        |
-| `q5_0` / `q5_1`   | TODO:  |
-| `q4_0` / `q4_1`   | TODO:   |
-| `q2_k` ... `q6_k` | TODO: |
-
-
 `ggml-silero-v6.2.0.bin` is installed alongside the transcription models and used automatically for voice activity detection.
 
 Installed models are stored here:
@@ -797,6 +781,8 @@ Examples:
 ~/.local/share/asryx/models/ggml-base.en.bin
 ~/.local/share/asryx/models/ggml-silero-v6.2.0.bin
 ```
+
+Want smaller/faster local copies of any of these? See [Quantization](/docs/quantization.md).
 
 ## Configuration
 

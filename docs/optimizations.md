@@ -1,7 +1,5 @@
 # Optimizations
 
-You don't have to do this, BUT:
-
 If you want to speed up build times or squeeze a bit of inference performance out of the CPU, you can install these optional tools.
 
 ## OpenMP
