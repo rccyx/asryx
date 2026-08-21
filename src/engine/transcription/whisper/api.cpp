@@ -173,7 +173,7 @@ yx::Result<Context> load_context(const std::string& model_path)
   return yx::ok(Context(std::move(state)));
 }
 
-yx::Result<int> prompt_token_count(Context& ctx, const std::string& prompt)
+yx::Result<int> prompt_token_count(const Context& ctx, const std::string& prompt)
 {
   whisper_context* const raw_ctx = ctx._state->ctx.get();
   const int count = whisper_tokenize(raw_ctx, prompt.c_str(), nullptr, 0);
