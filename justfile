@@ -20,6 +20,10 @@ test_tidy_sources := "find tests -type f -name '*.cpp' -print0"
 tidy_jobs := "2"
 package_shell_sources := "find package -type f \\( -name '*.sh' -o -name 'build' -o -name 'install' -o -name 'uninstall' \\) -print0"
 
+# symlink to root for LSP / editor autocomplete & diagnostics (clangd, ccls)
+@ln:
+	ln -sf build/release/compile_commands.json .
+
 @format:
 	{{cpp_sources}} | xargs -0 -r clang-format -i
 

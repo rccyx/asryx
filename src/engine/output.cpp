@@ -2,31 +2,46 @@
 #include "engine/engine.hpp"
 #include "platform/process.hpp"
 
+#include <cstdlib>
 #include <string>
 
 namespace engine {
 
 yx::Result<bool> copy_to_clipboard(const std::string& text)
 {
-  const auto has_wl_copy = platform::command_exists("wl-copy");
-  if (!has_wl_copy) {
-    return yx::fail(has_wl_copy.error());
+  const char* env_session = std::getenv("XDG_SESSION_TYPE");
+
+  if (!env_session) {
+    return yx::fail(std::string("Unsupported session type: XDG_SESSION_TYPE is not set"));
   }
 
-  if (*has_wl_copy) {
-    return platform::run_process_with_stdin({"wl-copy"}, text);
+  const std::string session_type(env_session);
+
+  if (session_type == "wayland") {
+    const auto has_wl_copy = platform::command_exists("wl-copy");
+    if (!has_wl_copy) {
+      return yx::fail(has_wl_copy.error());
+    }
+
+    if (*has_wl_copy) {
+      return platform::run_process_with_stdin({"wl-copy"}, text);
+    }
+    return yx::ok(false);
   }
 
-  const auto has_xclip = platform::command_exists("xclip");
-  if (!has_xclip) {
-    return yx::fail(has_xclip.error());
+  if (session_type == "x11") {
+    const auto has_xclip = platform::command_exists("xclip");
+    if (!has_xclip) {
+      return yx::fail(has_xclip.error());
+    }
+
+    if (*has_xclip) {
+      return platform::run_process_with_stdin({"xclip", "-selection", "clipboard"}, text);
+    }
+    return yx::ok(false);
   }
 
-  if (*has_xclip) {
-    return platform::run_process_with_stdin({"xclip", "-selection", "clipboard"}, text);
-  }
-
-  return yx::ok(false);
+  return yx::fail(std::string("Unsupported session type: ") + session_type);
 }
 
 yx::Result<bool> send_notification(const std::string& message)
