@@ -208,6 +208,20 @@ std::string read_output(const Context& ctx)
   return output;
 }
 
+std::vector<Segment> read_segments(const Context& ctx)
+{
+  auto* const raw = ctx._state->ctx.get();
+  std::vector<Segment> segments;
+  const int count = whisper_full_n_segments(raw);
+  segments.reserve(static_cast<std::size_t>(count));
+  for (int i = 0; i < count; ++i) {
+    const char* const text = whisper_full_get_segment_text(raw, i);
+    segments.push_back({whisper_full_get_segment_t0(raw, i), whisper_full_get_segment_t1(raw, i),
+                        text != nullptr ? text : ""});
+  }
+  return segments;
+}
+
 double detected_speech_seconds(const SpeechInput& input)
 {
   const whisper_vad_context_params vad_ctx_params = whisper_vad_default_context_params();

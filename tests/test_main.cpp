@@ -64,6 +64,8 @@ int main()
     run_test_lock();
     run_test_process();
     run_test_runtime();
+    run_test_stream();
+    run_test_follow();
 
     std::cout << "All unit tests passed successfully!\n";
 

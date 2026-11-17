@@ -24,6 +24,8 @@ void _print_usage()
             << "  asryx --language <code|auto>    Select transcription language\n"
             << "  asryx --prompt <text>           Set Whisper prompt\n"
             << "  asryx --no-prompt               Clear Whisper prompt\n"
+            << "  asryx --rolling                 Enable rolling transcription\n"
+            << "  asryx --no-rolling              Use offline transcription\n"
             << "  asryx --model list              List available model sizes\n"
             << "  asryx --model install <name>    Install a model\n"
             << "  asryx --model quantize <name> <quant>\n"
@@ -115,6 +117,19 @@ yx::Result<int> run(const std::vector<std::string>& args)
 
   if (args.size() == 1 && args[0] == "--no-prompt") {
     return _clear_prompt().transform([] { return 0; });
+  }
+
+  if (args.size() == 1 && (args[0] == "--rolling" || args[0] == "--no-rolling")) {
+    return config::load_config()
+        .and_then([&args](config::Config config) {
+          config.rolling = args[0] == "--rolling";
+          return config::save_config(config);
+        })
+        .transform([] { return 0; });
+  }
+
+  if (args.size() == 1 && args[0] == "--rolling-worker") {
+    return runtime::run_rolling_worker();
   }
 
   if (args.size() == 2 && args[0] == "--model") {

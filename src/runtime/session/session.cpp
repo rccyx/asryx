@@ -3,6 +3,7 @@
 #include "constants/constants.hpp"
 #include "platform/fs.hpp"
 #include "platform/process.hpp"
+#include "runtime/stream/stream.hpp"
 
 #include <array>
 #include <cctype>
@@ -212,6 +213,11 @@ yx::Result<void> write_recorder_pid(const std::filesystem::path& runtime_dir, pi
 
 yx::Result<void> clean_payload(const std::filesystem::path& runtime_dir)
 {
+  const auto rolling_cleaned = stream::clean(runtime_dir);
+  if (!rolling_cleaned) {
+    return rolling_cleaned;
+  }
+
   using PathBuilder = std::filesystem::path (*)(const std::filesystem::path&);
 
   static constexpr std::array<PathBuilder, 5> targets = {

@@ -53,9 +53,11 @@ yx::Result<TranscriptionContext> _build_context(const std::filesystem::path& run
       });
 }
 
-yx::Result<void> _route(const std::filesystem::path& runtime_dir, const config::Config& config,
-                        const std::string& output)
+} // namespace
+
+yx::Result<void> deliver(const DeliveryInput& input)
 {
+  const auto& [runtime_dir, config, output] = input;
   const auto copied = engine::copy_to_clipboard(output);
   if (!copied) {
     return yx::fail(copied.error());
@@ -92,8 +94,6 @@ yx::Result<void> _route(const std::filesystem::path& runtime_dir, const config::
   return session::clean_payload(runtime_dir);
 }
 
-} // namespace
-
 yx::Result<void> stop_and_transcribe(const std::filesystem::path& runtime_dir, pid_t rec_pid)
 {
   const auto stopped = engine::stop_recording(rec_pid);
@@ -112,6 +112,11 @@ yx::Result<void> stop_and_transcribe(const std::filesystem::path& runtime_dir, p
     return yx::fail(state_written.error());
   }
 
+  return transcribe_stopped(runtime_dir);
+}
+
+yx::Result<void> transcribe_stopped(const std::filesystem::path& runtime_dir)
+{
   const auto context = config::load_config().and_then([&runtime_dir](config::Config config) {
     return _build_context(runtime_dir, std::move(config));
   });
@@ -138,7 +143,7 @@ yx::Result<void> stop_and_transcribe(const std::filesystem::path& runtime_dir, p
     return session::clean_payload(runtime_dir);
   }
 
-  return _route(runtime_dir, context->config, output);
+  return deliver({.runtime_dir = runtime_dir, .config = context->config, .output = output});
 }
 
 } // namespace runtime::transcription

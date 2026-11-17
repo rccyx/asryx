@@ -118,14 +118,19 @@ void run_test_app()
       {"--pipe-to", "tee -a ~/x.txt"},
       {"--prompt", "Project Atlas, Kubernetes, PostgreSQL, OAuth"},
       {"cancel"},
+      {"--rolling"},
   };
   assert_control_commands_do_not_record(control_commands);
 
   auto loaded_config = config::load_config();
   ASSERT(loaded_config.has_value());
   auto cfg = *loaded_config;
+  ASSERT(cfg.rolling);
   ASSERT(cfg.pipe_to == std::string("tee -a ~/x.txt"));
   ASSERT(cfg.prompt == std::string("Project Atlas, Kubernetes, PostgreSQL, OAuth"));
+
+  assert_control_command_does_not_record({"--no-rolling"});
+  ASSERT(!config::load_config()->rolling);
 
   assert_control_command_does_not_record({"--no-pipe"});
   loaded_config = config::load_config();

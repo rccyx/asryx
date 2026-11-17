@@ -10,6 +10,7 @@ namespace runtime {
 yx::Result<std::string> get_status();
 yx::Result<void> cancel();
 yx::Result<void> toggle();
+yx::Result<int> run_rolling_worker();
 
 } // namespace runtime
 

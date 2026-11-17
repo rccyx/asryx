@@ -14,6 +14,7 @@ struct Config
   std::string language = std::string(constants::config::default_language);
   std::string pipe_to;
   std::string prompt;
+  bool rolling = false;
 };
 
 yx::Result<Config> load_config();

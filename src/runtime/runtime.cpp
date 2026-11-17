@@ -5,6 +5,7 @@
 #include "platform/fs.hpp"
 #include "runtime/recording/recording.hpp"
 #include "runtime/session/session.hpp"
+#include "runtime/stream/stream.hpp"
 #include "runtime/transcription/transcription.hpp"
 
 #include <filesystem>
@@ -85,6 +86,14 @@ yx::Result<bool> _cancel_recording(const std::filesystem::path& runtime_dir)
   if (!rec_pid.has_value()) {
     yx::ignore_failure(session::release_lock(runtime_dir));
     return yx::ok(true);
+  }
+
+  if (stream::active(runtime_dir)) {
+    const auto marker = session::create_cancel_marker(runtime_dir);
+    if (!marker) {
+      yx::ignore_failure(session::release_lock(runtime_dir));
+      return yx::fail(marker.error());
+    }
   }
 
   const auto stopped = engine::stop_recording(*rec_pid);
@@ -203,7 +212,9 @@ yx::Result<void> toggle()
 
   const auto rec_pid = session::live_recorder_pid(runtime_dir);
   const auto result = rec_pid.has_value()
-                          ? transcription::stop_and_transcribe(runtime_dir, *rec_pid)
+                          ? (stream::active(runtime_dir)
+                                 ? stream::stop_and_deliver(runtime_dir, *rec_pid)
+                                 : transcription::stop_and_transcribe(runtime_dir, *rec_pid))
                           : recording::start(runtime_dir);
   if (!result) {
     _handle_runtime_error(runtime_dir, result.error());
@@ -217,6 +228,11 @@ yx::Result<void> toggle()
   }
 
   return yx::ok();
+}
+
+yx::Result<int> run_rolling_worker()
+{
+  return stream::run_worker();
 }
 
 } // namespace runtime
