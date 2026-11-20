@@ -25,19 +25,19 @@ yx::Result<engine::TranscriptionRequest> _request_for(const Path& dir)
 {
   const auto cfg = config::load_config();
   if (!cfg) {
-    return yx::fail(cfg.error());
+    return std::unexpected(cfg.error());
   }
   const auto language = model::transcription_language_for(*cfg);
   if (!language) {
-    return yx::fail(language.error());
+    return std::unexpected(language.error());
   }
   const auto model_path = model::get_model_path(cfg->model);
   if (!model_path) {
-    return yx::fail(model_path.error());
+    return std::unexpected(model_path.error());
   }
   const auto vad = model::get_vad_model_path();
   if (!vad) {
-    return yx::fail(vad.error());
+    return std::unexpected(vad.error());
   }
   return yx::ok(engine::TranscriptionRequest{
       .model_path = *model_path,
@@ -52,7 +52,7 @@ yx::Result<engine::TranscriptionRequest> _request_for(const Path& dir)
 yx::Result<std::vector<asr::rolling::Segment>> _decode(asr::whisper::TranscribeInput input)
 {
   if (!asr::whisper::transcribe(input)) {
-    return yx::fail("rolling Whisper decode failed");
+    return yx::fail(yx::ErrorCode::transcription, "rolling Whisper decode failed");
   }
   const auto text = asr::whisper::read_output(*input.ctx);
   auto segments = asr::whisper::read_segments(*input.ctx);
@@ -71,7 +71,7 @@ yx::Result<std::vector<asr::rolling::Segment>> _decode(asr::whisper::TranscribeI
   decoded.reserve(segments.size());
   for (const auto& segment : segments) {
     if (segment.t0_cs < 0 || segment.t1_cs < segment.t0_cs) {
-      return yx::fail("invalid Whisper segment time");
+      return yx::fail(yx::ErrorCode::transcription, "invalid Whisper segment time");
     }
     decoded.push_back({static_cast<std::uint64_t>(segment.t0_cs) * 160,
                        static_cast<std::uint64_t>(segment.t1_cs) * 160, segment.text});
@@ -87,11 +87,11 @@ yx::Result<engine::audio::WavFollower> _open_wav(const Path& dir)
       return opened;
     }
     if (std::filesystem::exists(dir / "stream.finish") || !session::live_recorder_pid(dir)) {
-      return yx::fail(opened.error());
+      return std::unexpected(opened.error());
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(40));
   }
-  return yx::fail("rolling transcription cancelled");
+  return yx::fail(yx::ErrorCode::cancelled, "rolling transcription cancelled");
 }
 
 struct FollowInput
@@ -108,12 +108,12 @@ yx::Result<std::string> _follow(const FollowInput& input)
     const bool finishing = std::filesystem::exists(dir / "stream.finish");
     const auto audio = wav.read();
     if (!audio) {
-      return yx::fail(audio.error());
+      return std::unexpected(audio.error());
     }
     if (!audio->empty()) {
       const auto appended = processor.append(*audio);
       if (!appended) {
-        return yx::fail(appended.error());
+        return std::unexpected(appended.error());
       }
       continue;
     }
@@ -121,11 +121,11 @@ yx::Result<std::string> _follow(const FollowInput& input)
       return processor.finish();
     }
     if (!session::live_recorder_pid(dir)) {
-      return yx::fail("recorder exited before rolling session completed");
+      return yx::fail(yx::ErrorCode::recorder, "recorder exited before rolling session completed");
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(40));
   }
-  return yx::fail("rolling transcription cancelled");
+  return yx::fail(yx::ErrorCode::cancelled, "rolling transcription cancelled");
 }
 
 } // namespace
@@ -134,11 +134,11 @@ yx::Result<std::string> compute(const Path& dir)
 {
   auto request = _request_for(dir);
   if (!request) {
-    return yx::fail(request.error());
+    return std::unexpected(request.error());
   }
   auto context = asr::whisper::load_context(request->model_path);
   if (!context) {
-    return yx::fail(context.error());
+    return std::unexpected(context.error());
   }
   asr::rolling::Processor processor([&](std::span<const float> audio) {
     return _decode({.ctx = &*context,
@@ -149,7 +149,7 @@ yx::Result<std::string> compute(const Path& dir)
   });
   auto wav = _open_wav(dir);
   if (!wav) {
-    return yx::fail(wav.error());
+    return std::unexpected(wav.error());
   }
   return _follow({dir, *wav, processor});
 }

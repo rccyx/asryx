@@ -57,12 +57,12 @@ yx::Result<void> Processor::_process(bool final)
   }
   auto decoded = _decode(_audio);
   if (!decoded) {
-    return yx::fail(decoded.error());
+    return std::unexpected(decoded.error());
   }
   std::uint64_t prior_end = 0;
   for (auto& segment : *decoded) {
     if (segment.begin < prior_end || segment.begin > segment.end || segment.end > _audio.size()) {
-      return yx::fail("invalid Whisper segment timestamps");
+      return yx::fail(yx::ErrorCode::transcription, "invalid Whisper segment timestamps");
     }
     prior_end = segment.end;
     segment.begin += _base;
@@ -80,7 +80,7 @@ yx::Result<void> Processor::_process(bool final)
   _confirm(*decoded);
   _decoded_at = _received;
   if (_audio.size() >= LIMIT) {
-    return yx::fail("rolling transcription has no confirmed boundary before 28 seconds");
+    return yx::fail(yx::ErrorCode::transcription, "rolling transcription has no confirmed boundary before 28 seconds");
   }
   return yx::ok();
 }
@@ -109,7 +109,7 @@ yx::Result<std::string> Processor::finish()
 {
   const auto done = _process(true);
   if (!done) {
-    return yx::fail(done.error());
+    return std::unexpected(done.error());
   }
   return yx::ok(std::move(_committed));
 }

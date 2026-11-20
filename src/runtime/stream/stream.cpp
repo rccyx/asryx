@@ -48,10 +48,10 @@ yx::Result<void> _write_text(const Path& file, const std::string& text)
 {
   std::ofstream out(file, std::ios::binary | std::ios::trunc);
   if (!out || !(out << text) || !out.flush()) {
-    return yx::fail("cannot write rolling session file: " + file.string());
+    return yx::fail(yx::ErrorCode::filesystem, "cannot write rolling session file: " + file.string());
   }
   out.close();
-  return out ? yx::ok() : yx::Result<void>(yx::fail("cannot close rolling session file"));
+  return out ? yx::ok() : yx::Result<void>(yx::fail(yx::ErrorCode::filesystem, "cannot close rolling session file"));
 }
 
 yx::Result<void> _await_worker(const Path& dir)
@@ -92,7 +92,7 @@ yx::Result<void> _deliver(const Path& dir)
   }
   const auto cfg = config::load_config();
   if (!cfg) {
-    return yx::fail(cfg.error());
+    return std::unexpected(cfg.error());
   }
   if (session::cancel_requested(dir)) {
     return session::clean_payload(dir);
@@ -111,7 +111,7 @@ yx::Result<void> start(const Path& dir)
   const auto child = platform::spawn_process_background({"/proc/self/exe", "--rolling-worker"},
                                                         (dir / "stream.err").string());
   if (!child) {
-    return yx::fail(child.error());
+    return std::unexpected(child.error());
   }
   const auto saved = _write_text(dir / "stream.pid", std::to_string(*child) + "\n");
   if (!saved) {
@@ -128,7 +128,7 @@ yx::Result<void> cancel_worker(const Path& dir)
   }
   const auto stopped = platform::stop_process(*pid, SIGTERM);
   if (!stopped) {
-    return yx::fail(stopped.error());
+    return std::unexpected(stopped.error());
   }
   for (int i = 0; i < 50 && _running(*pid); ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -136,7 +136,7 @@ yx::Result<void> cancel_worker(const Path& dir)
   if (_running(*pid)) {
     const auto killed = platform::stop_process(*pid, SIGKILL);
     if (!killed) {
-      return yx::fail(killed.error());
+      return std::unexpected(killed.error());
     }
     while (_running(*pid)) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -166,10 +166,10 @@ yx::Result<void> stop_and_deliver(const Path& dir, pid_t recorder)
 {
   const auto stopped = engine::stop_recording(recorder);
   if (!stopped) {
-    return yx::fail(stopped.error());
+    return std::unexpected(stopped.error());
   }
   if (!*stopped) {
-    return yx::fail("rolling recorder did not stop");
+    return yx::fail(yx::ErrorCode::recorder, "rolling recorder did not stop");
   }
   return session::write_state(dir, std::string(constants::runtime::transcribing_state))
       .and_then([&] { return _write_text(dir / "stream.finish", ""); })
@@ -191,12 +191,12 @@ yx::Result<int> run_worker()
   }
   const auto written = _write_text(dir / "stream.txt.tmp", *transcript);
   if (!written) {
-    return yx::fail(written.error());
+    return std::unexpected(written.error());
   }
   std::error_code error;
   std::filesystem::rename(dir / "stream.txt.tmp", dir / "stream.txt", error);
   if (error) {
-    return yx::fail("cannot publish rolling transcript: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem, "cannot publish rolling transcript: " + error.message());
   }
   return _write_text(dir / "stream.done", "").transform([] { return 0; });
 }

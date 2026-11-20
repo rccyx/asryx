@@ -60,7 +60,7 @@ yx::Result<void> deliver(const DeliveryInput& input)
   const auto& [runtime_dir, config, output] = input;
   const auto copied = engine::copy_to_clipboard(output);
   if (!copied) {
-    return yx::fail(copied.error());
+    return std::unexpected(copied.error());
   }
 
   if (!*copied) {
@@ -79,7 +79,7 @@ yx::Result<void> deliver(const DeliveryInput& input)
 
   const auto piped = platform::run_process_with_stdin({"sh", "-c", config.pipe_to}, output);
   if (!piped) {
-    return yx::fail(piped.error());
+    return std::unexpected(piped.error());
   }
 
   if (!*piped) {
@@ -98,7 +98,7 @@ yx::Result<void> stop_and_transcribe(const std::filesystem::path& runtime_dir, p
 {
   const auto stopped = engine::stop_recording(rec_pid);
   if (!stopped) {
-    return yx::fail(stopped.error());
+    return std::unexpected(stopped.error());
   }
 
   if (!*stopped) {
@@ -109,7 +109,7 @@ yx::Result<void> stop_and_transcribe(const std::filesystem::path& runtime_dir, p
   const auto state_written =
       session::write_state(runtime_dir, std::string(constants::runtime::transcribing_state));
   if (!state_written) {
-    return yx::fail(state_written.error());
+    return std::unexpected(state_written.error());
   }
 
   return transcribe_stopped(runtime_dir);
@@ -121,7 +121,7 @@ yx::Result<void> transcribe_stopped(const std::filesystem::path& runtime_dir)
     return _build_context(runtime_dir, std::move(config));
   });
   if (!context) {
-    return yx::fail(context.error());
+    return std::unexpected(context.error());
   }
 
   const auto transcription = engine::transcribe(context->request);
@@ -130,7 +130,7 @@ yx::Result<void> transcribe_stopped(const std::filesystem::path& runtime_dir)
       return _clean_cancelled(runtime_dir);
     }
 
-    return yx::fail(transcription.error());
+    return std::unexpected(transcription.error());
   }
 
   if (session::cancel_requested(runtime_dir)) {

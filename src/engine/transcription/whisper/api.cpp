@@ -167,7 +167,7 @@ yx::Result<Context> load_context(const std::string& model_path)
   state->ctx.reset(whisper_init_from_file_with_params(model_path.c_str(), context_params));
 
   if (state->ctx == nullptr) {
-    return yx::fail("failed to initialize whisper model: " + model_path);
+    return yx::fail(yx::ErrorCode::transcription, "failed to initialize whisper model: " + model_path);
   }
 
   return yx::ok(Context(std::move(state)));

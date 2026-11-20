@@ -79,30 +79,30 @@ yx::Result<void> copy_model_into_store(const std::filesystem::path& source,
                                        const std::filesystem::path& target)
 {
   if (!file_exists_nonempty(source)) {
-    return yx::fail("download did not produce model: " + source.string());
+    return yx::fail(yx::ErrorCode::filesystem, "download did not produce model: " + source.string());
   }
 
   std::error_code error;
   std::filesystem::create_directories(target.parent_path(), error);
   if (error) {
-    return yx::fail("failed to create model directory: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem, "failed to create model directory: " + error.message());
   }
 
   const auto tmp = target.parent_path() / ("." + target.filename().string() + ".tmp");
 
   std::filesystem::copy_file(source, tmp, std::filesystem::copy_options::overwrite_existing, error);
   if (error) {
-    return yx::fail("failed to copy model: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem, "failed to copy model: " + error.message());
   }
 
   std::filesystem::rename(tmp, target, error);
   if (error) {
     const auto deleted = platform::safe_delete_file(tmp);
     if (!deleted) {
-      return yx::fail(deleted.error());
+      return std::unexpected(deleted.error());
     }
 
-    return yx::fail("failed to store model: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem, "failed to store model: " + error.message());
   }
 
   return yx::ok();

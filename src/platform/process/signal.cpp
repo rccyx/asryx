@@ -19,7 +19,7 @@ bool is_process_running(pid_t pid)
 yx::Result<bool> stop_process(pid_t pid, int sig)
 {
   if (pid <= 0) {
-    return yx::fail("invalid process id");
+    return yx::fail(yx::ErrorCode::process, "invalid process id");
   }
 
   if (kill(pid, sig) == 0) {
@@ -30,7 +30,7 @@ yx::Result<bool> stop_process(pid_t pid, int sig)
     return yx::ok(true);
   }
 
-  return yx::fail("failed to signal process: " + std::string(std::strerror(errno)));
+  return yx::fail(yx::ErrorCode::process, "failed to signal process: " + std::string(std::strerror(errno)));
 }
 
 } // namespace platform

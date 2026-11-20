@@ -36,7 +36,7 @@ void _print_usage()
 yx::Result<void> _set_pipe_to(const std::string& command)
 {
   if (command.empty()) {
-    return yx::fail("--pipe-to requires a non-empty command string");
+    return yx::fail(yx::ErrorCode::invalid_argument, "--pipe-to requires a non-empty command string");
   }
 
   return config::load_config().and_then([&command](config::Config config) {
@@ -56,7 +56,7 @@ yx::Result<void> _clear_pipe_to()
 yx::Result<void> _set_prompt(const std::string& prompt)
 {
   if (prompt.empty()) {
-    return yx::fail("--prompt requires a non-empty prompt string");
+    return yx::fail(yx::ErrorCode::invalid_argument, "--prompt requires a non-empty prompt string");
   }
 
   return config::load_config().and_then([&prompt](config::Config config) {

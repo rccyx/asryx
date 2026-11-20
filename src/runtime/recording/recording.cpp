@@ -19,17 +19,17 @@ yx::Result<void> start(const std::filesystem::path& runtime_dir)
   const auto config =
       session::clean_payload(runtime_dir).and_then([] { return config::load_config(); });
   if (!config) {
-    return yx::fail(config.error());
+    return std::unexpected(config.error());
   }
 
   const auto installed = model::validate_config(*config).and_then(
       [&config] { return model::is_model_installed(config->model); });
   if (!installed) {
-    return yx::fail(installed.error());
+    return std::unexpected(installed.error());
   }
 
   if (!*installed) {
-    return yx::fail("model '" + config->model +
+    return yx::fail(yx::ErrorCode::invalid_argument, "model '" + config->model +
                     "' is not installed. Install it with: asryx --model install " + config->model);
   }
 
@@ -41,18 +41,18 @@ yx::Result<void> start(const std::filesystem::path& runtime_dir)
       })
       .and_then([&runtime_dir, rolling = config->rolling](pid_t pid) -> yx::Result<void> {
         if (!platform::is_process_running(pid)) {
-          return yx::fail("recorder process exited before startup completed");
+          return yx::fail(yx::ErrorCode::recorder, "recorder process exited before startup completed");
         }
 
         const auto pid_written = session::write_recorder_pid(runtime_dir, pid);
         if (!pid_written) {
-          return yx::fail(pid_written.error());
+          return std::unexpected(pid_written.error());
         }
 
         const auto state_written =
             session::write_state(runtime_dir, std::string(constants::runtime::recording_state));
         if (!state_written) {
-          return yx::fail(state_written.error());
+          return std::unexpected(state_written.error());
         }
 
         if (rolling) {

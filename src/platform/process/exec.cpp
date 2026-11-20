@@ -48,7 +48,7 @@ void redirect_stderr_to_file(const std::string& path)
 yx::Result<void> close_fd(int fd)
 {
   if (close(fd) == -1) {
-    return yx::fail("failed to close file descriptor: " + std::string(std::strerror(errno)));
+    return yx::fail(yx::ErrorCode::process, "failed to close file descriptor: " + std::string(std::strerror(errno)));
   }
 
   return yx::ok();
@@ -62,7 +62,7 @@ yx::Result<void> write_all(int fd, const std::string& input)
   while (remaining > 0) {
     const ssize_t written = write(fd, cursor, remaining);
     if (written == 0) {
-      return yx::fail("failed to write process stdin: wrote zero bytes");
+      return yx::fail(yx::ErrorCode::process, "failed to write process stdin: wrote zero bytes");
     }
 
     if (written == -1) {
@@ -70,7 +70,7 @@ yx::Result<void> write_all(int fd, const std::string& input)
         continue;
       }
 
-      return yx::fail("failed to write process stdin: " + std::string(std::strerror(errno)));
+      return yx::fail(yx::ErrorCode::process, "failed to write process stdin: " + std::string(std::strerror(errno)));
     }
 
     cursor += static_cast<size_t>(written);

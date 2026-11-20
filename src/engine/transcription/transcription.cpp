@@ -22,7 +22,7 @@ yx::Result<void> _validate_prompt_tokens(int tokens)
     return yx::ok();
   }
 
-  return yx::fail("prompt is " + std::to_string(tokens) + " tokens, maximum is " +
+  return yx::fail(yx::ErrorCode::transcription, "prompt is " + std::to_string(tokens) + " tokens, maximum is " +
                   std::to_string(MAX_PROMPT_TOKENS));
 }
 
@@ -32,7 +32,7 @@ yx::Result<void> validate_prompt(const std::string& model_path, const std::strin
 {
   auto ctx = whisper::load_context(model_path);
   if (!ctx) {
-    return yx::fail(ctx.error());
+    return std::unexpected(ctx.error());
   }
 
   return whisper::prompt_token_count(*ctx, prompt).and_then([](int tokens) {
@@ -44,17 +44,17 @@ yx::Result<std::string> run(const TranscriptionRequest& request)
 {
   const auto valid_request = request::validate(request);
   if (!valid_request) {
-    return yx::fail(valid_request.error());
+    return std::unexpected(valid_request.error());
   }
 
   const auto samples = audio::read_pcm16_wav(request.wav_path);
   if (!samples) {
-    return yx::fail(samples.error());
+    return std::unexpected(samples.error());
   }
 
   auto ctx = whisper::load_context(request.model_path);
   if (!ctx) {
-    return yx::fail(ctx.error());
+    return std::unexpected(ctx.error());
   }
 
   auto transcription_request = request;
@@ -70,10 +70,10 @@ yx::Result<std::string> run(const TranscriptionRequest& request)
   if (!whisper::transcribe(primary_input)) {
     if (!request.cancel_marker_path.empty() && std::filesystem::exists(request.cancel_marker_path))
     {
-      return yx::fail("transcription canceled");
+      return yx::fail(yx::ErrorCode::cancelled, "transcription canceled");
     }
 
-    return yx::fail("transcription failed");
+    return yx::fail(yx::ErrorCode::transcription, "transcription failed");
   }
 
   auto text = whisper::read_output(*ctx);
