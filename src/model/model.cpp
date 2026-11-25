@@ -26,21 +26,23 @@ yx::Result<void> _run_whisper_model_downloader(const std::string& name)
 {
   const auto source_dir = store::whisper_source_dir();
   if (!source_dir) {
-    return yx::fail(source_dir.error());
+    return std::unexpected(source_dir.error());
   }
 
   const auto downloader = store::whisper_model_downloader();
   if (!downloader) {
-    return yx::fail(downloader.error());
+    return std::unexpected(downloader.error());
   }
 
   if (!std::filesystem::exists(*source_dir / ".git")) {
-    return yx::fail("missing whisper.cpp checkout: " + source_dir->string() +
-                    ". Run ./package/install first.");
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "missing whisper.cpp checkout: " + source_dir->string() +
+                        ". Run ./package/install first.");
   }
 
   if (!std::filesystem::exists(*downloader)) {
-    return yx::fail("missing whisper.cpp model downloader: " + downloader->string());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "missing whisper.cpp model downloader: " + downloader->string());
   }
 
   std::cout << "Downloading model " << name << " via whisper.cpp downloader...\n";
@@ -49,11 +51,11 @@ yx::Result<void> _run_whisper_model_downloader(const std::string& name)
   const auto success = platform::run_process_blocking(
       {"bash", "-c", script, "asryx-model-download", source_dir->string(), name});
   if (!success) {
-    return yx::fail(success.error());
+    return std::unexpected(success.error());
   }
 
   if (!*success) {
-    return yx::fail("failed to download model " + name);
+    return yx::fail(yx::ErrorCode::invalid_argument, "failed to download model " + name);
   }
 
   return yx::ok();
@@ -63,7 +65,7 @@ yx::Result<std::vector<std::string>> _installed_quantized_model_names()
 {
   const auto dir = store::model_dir();
   if (!dir) {
-    return yx::fail(dir.error());
+    return std::unexpected(dir.error());
   }
 
   std::vector<std::string> names;
@@ -134,18 +136,19 @@ bool is_english_only_model(const std::string& name)
 yx::Result<void> validate_config(const config::Config& cfg)
 {
   if (!_is_supported_model_name(cfg.model)) {
-    return yx::fail("unsupported model size: " + cfg.model);
+    return yx::fail(yx::ErrorCode::invalid_argument, "unsupported model size: " + cfg.model);
   }
 
   if (!is_supported_language(cfg.language)) {
-    return yx::fail("unsupported language: " + cfg.language);
+    return yx::fail(yx::ErrorCode::invalid_argument, "unsupported language: " + cfg.language);
   }
 
   if (is_english_only_model(cfg.model) && cfg.language != constants::config::auto_language &&
       cfg.language != constants::config::english_language)
   {
-    return yx::fail("active model " + cfg.model +
-                    " is English-only; use a multilingual model for " + cfg.language);
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "active model " + cfg.model +
+                        " is English-only; use a multilingual model for " + cfg.language);
   }
 
   return yx::ok();
@@ -155,11 +158,12 @@ yx::Result<void> validate_vad_model()
 {
   const auto path = store::vad_model_path();
   if (!path) {
-    return yx::fail(path.error());
+    return std::unexpected(path.error());
   }
 
   if (!store::file_exists_nonempty(*path)) {
-    return yx::fail("VAD model is not installed: " + path->string());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "VAD model is not installed: " + path->string());
   }
 
   return yx::ok();
@@ -184,7 +188,7 @@ yx::Result<void> list_models()
 {
   const auto config = config::load_config();
   if (!config) {
-    return yx::fail(config.error());
+    return std::unexpected(config.error());
   }
 
   std::cout << "Available models:\n";
@@ -192,7 +196,7 @@ yx::Result<void> list_models()
   for (const auto& model_name : get_supported_models()) {
     const auto installed = is_model_installed(model_name);
     if (!installed) {
-      return yx::fail(installed.error());
+      return std::unexpected(installed.error());
     }
 
     const bool active = model_name == config->model;
@@ -203,7 +207,7 @@ yx::Result<void> list_models()
 
   const auto quantized_models = _installed_quantized_model_names();
   if (!quantized_models) {
-    return yx::fail(quantized_models.error());
+    return std::unexpected(quantized_models.error());
   }
 
   for (const auto& model_name : *quantized_models) {
@@ -215,7 +219,7 @@ yx::Result<void> list_models()
   std::cout << "\nVAD model:\n";
   const auto vad_installed = is_vad_model_installed();
   if (!vad_installed) {
-    return yx::fail(vad_installed.error());
+    return std::unexpected(vad_installed.error());
   }
 
   std::cout << "  " << constants::paths::VAD_MODEL_FILE
@@ -227,12 +231,12 @@ yx::Result<void> list_models()
 yx::Result<void> install_model(const std::string& name)
 {
   if (!artifact::is_supported_full_model(name)) {
-    return yx::fail("unsupported model size: " + name);
+    return yx::fail(yx::ErrorCode::invalid_argument, "unsupported model size: " + name);
   }
 
   const auto model_path = get_model_path(name);
   if (!model_path) {
-    return yx::fail(model_path.error());
+    return std::unexpected(model_path.error());
   }
 
   const auto target_path = std::filesystem::path(*model_path);
@@ -243,13 +247,13 @@ yx::Result<void> install_model(const std::string& name)
 
   const auto downloaded_path = store::whisper_model_path(name);
   if (!downloaded_path) {
-    return yx::fail(downloaded_path.error());
+    return std::unexpected(downloaded_path.error());
   }
 
   if (!store::file_exists_nonempty(*downloaded_path)) {
     const auto downloaded = _run_whisper_model_downloader(name);
     if (!downloaded) {
-      return yx::fail(downloaded.error());
+      return std::unexpected(downloaded.error());
     }
   }
   else {
@@ -258,11 +262,12 @@ yx::Result<void> install_model(const std::string& name)
 
   const auto copied = store::copy_model_into_store(*downloaded_path, target_path);
   if (!copied) {
-    return yx::fail(copied.error());
+    return std::unexpected(copied.error());
   }
 
   if (!store::file_exists_nonempty(target_path)) {
-    return yx::fail("model install did not create " + target_path.string());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "model install did not create " + target_path.string());
   }
 
   std::cout << "Model " << name << " installed successfully.\n";
@@ -272,13 +277,14 @@ yx::Result<void> install_model(const std::string& name)
 yx::Result<void> use_model(const std::string& name)
 {
   if (!_is_supported_model_name(name)) {
-    return yx::fail("unsupported model size: " + name);
+    return yx::fail(yx::ErrorCode::invalid_argument, "unsupported model size: " + name);
   }
 
   return is_model_installed(name).and_then([&name](bool installed) -> yx::Result<void> {
     if (!installed) {
-      return yx::fail("model '" + name +
-                      "' is not installed. Install it with: asryx --model install " + name);
+      return yx::fail(yx::ErrorCode::invalid_argument,
+                      "model '" + name +
+                          "' is not installed. Install it with: asryx --model install " + name);
     }
 
     return config::load_config().and_then([&name](config::Config cfg) {
@@ -303,7 +309,7 @@ yx::Result<void> use_language(const std::string& language)
 yx::Result<void> uninstall_model(const std::string& name)
 {
   if (!_is_supported_model_name(name)) {
-    return yx::fail("unsupported model size: " + name);
+    return yx::fail(yx::ErrorCode::invalid_argument, "unsupported model size: " + name);
   }
 
   return get_model_path(name).and_then([&name](const std::string& model_path) {
@@ -317,8 +323,9 @@ yx::Result<void> uninstall_model(const std::string& name)
     return config::load_config().and_then(
         [&name, path](const config::Config& cfg) -> yx::Result<void> {
           if (cfg.model == name) {
-            return yx::fail("cannot uninstall active model '" + name +
-                            "'; switch models first with: asryx --model use <other>");
+            return yx::fail(yx::ErrorCode::invalid_argument,
+                            "cannot uninstall active model '" + name +
+                                "'; switch models first with: asryx --model use <other>");
           }
 
           return platform::safe_delete_file(path).transform(

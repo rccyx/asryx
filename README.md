@@ -1,5 +1,3 @@
-# asryx
-
 <p align="center">
   <a href="./assets/demo.gif">
     <img src="./assets/demo.gif" alt="asryx demo" width="100%">
@@ -72,7 +70,7 @@ An many more questions.
 So, the codebase is written in a way that's easily parseable (reads like pseudocode + no 3k LOC files doing 50 different things).
 
 <details>
-<summary><strong>Plus, here's the mechanism explaining why and how everything works</strong></summary>
+<summary><strong>Plus, here's the mechanism explaining why I made it and how everything works</strong></summary>
 
 <br/>
 
@@ -112,11 +110,9 @@ The binary starts when you invoke it, performs one operation, and exits.
 asryx
 ```
 
-On the first press, it starts recording and exits.
+On the first press, it starts recording and transcribes audio while you speak.
 
-Meaning, while you're talking, `asryx` itself isn't running. Only the native recorder remains, that's `pw-record` or `arecord`.
-
-On the second press, it stops recording, loads the weights into memory (base.en, large-v1, etc + VAD), transcribes the captured audio, delivers the result, cleans the session, and exits again.
+On the second press, it stops the recorder and delivers the transcript after the worker finishes the remaining audio.
 
 ## Runtime and locking
 
@@ -374,11 +370,13 @@ flowchart LR
 
 ### Three
 
-I don't want to deal with Python venv hell or run containers. Nor do I want a CLI with 70 flags to memorize, a new "best" model dropping every other week from the 8th provider, or a README that requires me to weigh options for "hybrid CTC/DTC decoders, 0.6B vs 1B parameter counts, EOU detection, RNN..." I have no time for this.
+I don't want to deal with Python venv hell or run containers. 
+
+Nor do I want a CLI with 70 flags to memorize, a new "best" model dropping every other week from the 8th provider, or a README that requires me to weigh options for "hybrid CTC/DTC decoders, 0.6B vs 1B parameter counts, EOU detection, RNN..." I genuinely have no time for this on a Monday morning.
 
 All I want is to press a key, talk for 15 minutes straight walking around, and have my transcription magically copied to my clipboard as fast and accurately as humanly possible, and most importantly, never break.
 
-Maybe I'll paste it later, or [pipe](https://man7.org/linux/man-pages/man2/pipe.2.html) it to another program.
+Maybe I'll paste it later, or [pipe](https://man7.org/linux/man-pages/man2/pipe.2.html) it to another program, the unix way.
 
 I don't want to read, configure, tweak anything. I just want to run one command, and it just works.
 
@@ -412,17 +410,17 @@ When you hit the toggle again, the recorder stops, the model loads instantly int
 
 When transcription finishes, the transcript is copied, the model context is released, the temporary audio is removed, and the process exits.
 
-The footprint returns to zero.
+The footprint returns back to zero.
 
 `asryx status` starts, checks the runtime, prints the result, and exits in 1.1ms (on average across 1,000 runs.)
 
 It prints either "recording", "transcribing" or "idle".
 
-Why even mention it? What's this for? 
+So why even mention it? What's this for? 
 
-This output can be used for status surfaces such as Waybar or Polybar, [control centers](https://github.com/rccyx/ctrlyx), or even high frequency tmux/shell loops every few milliseconds without impacting system load or CPU thermals.
+This output can be used for status surfaces such as Waybar or Polybar, [control centers](https://github.com/rccyx/ctrlyx) (dropping soon), or even high frequency tmux/shell loops every few milliseconds without impacting system load or CPU thermals.
 
-The control plane here still lives in the same low-millisecond world as classic native Linux utilities:
+The control plane here is in the same low-millisecond world as classic native Linux utilities:
 
 ```
 /usr/bin/true           0.22ms  (Bare-metal process spawn floor)
@@ -455,7 +453,7 @@ But size doesn't matter, my issue is bloat and unsophistication.
 
 These are usually bloated, they have to bind or rely on heavy deps, and mostly, or realistically, chosen because LLMs know Rust better than C++ with the alibi of "memory safety and cargo ecosystem", which means more supply chain attacks. `arrayref` got hit in August 2026.
 
-When I look at these codebases, I'm flabbergasted. The software does everything for everyone (LLM feature creep fatigue) which means it does nothing for no one.
+When I look at these codebases, I'm flabbergasted. The program does everything for everyone (LLM feature creep fatigue) which means it does nothing for no one.
 
 I open a file and see a single 2.5k line file with CLI dispatching, config loading, 200 lines of manual flag overrides (copy-pasted), daemon PID management, inline DSP resampling, notifications wired straight to a status bar's JSON format (hardcoded), an update checker, first launch macOS setup, and more.
 
@@ -463,7 +461,7 @@ That's all I need to know. Not even Gemini 3 Pro has enough context to understan
 
 #### Python
 
-Aside from env hell, and aside from README hell, and all the hurdles you have to go through to set it up, it takes seconds just to run `import pytorch` and initialize it into memory before touching an audio file or doing anything. By the time Python loads, `asryx` has probably finished processing a 5s sentence (cold).
+Aside from env hell, and aside from README hell, and all the hurdles you have to go through to set it up, it takes seconds just to run `import pytorch` and initialize it into memory before touching an audio file or doing anything. By the time Python loads, `asryx` has probably finished processing a 5 second sentence (cold).
 
 Also, Python `faster-whisper` and similar setups pull anywhere from 150 MB to 4 GB+ of PyTorch, CTranslate2 bindings, NumPy, and CUDA runtimes before they're even ready to run.
 
@@ -473,7 +471,7 @@ Most of these AI and transcription setups make you run a background server (API 
 
 #### SaaS
 
-I'm definitely not sending my voice to a server.
+No.
 
 ## Installation
 
@@ -545,7 +543,7 @@ Model downloads pull from [Hugging Face](https://huggingface.co/ggerganov/whispe
 
 None of this is required. 
 
-The intended UX for 99% of use cases is running `./package/install`, setting a [keybind](#keybind), and forgetting the software even exists for a year. 
+The intended UX for 99% of use cases is running `./package/install`, setting a [keybind](#keybind), and forgetting the program even exists for a year. 
 
 But just in case:
 
@@ -566,7 +564,7 @@ If you hear sound, see notifications, and have installed a non-TTY distro, you p
 > The build requires a **C++23** capable compiler and CMake >= 3.25. On old distros, install either Clang 19+ or GCC 14+ before running `./package/install`.
 
 > [!NOTE]
-> C++23 support is universal at this point. Ubuntu 26, Arch, Fedora, NixOS, or Debian Trixie (which is the current stable) automatically ship with compilers that work out of the box.
+> C++23 support is universal at this point. Ubuntu 26, Arch, Fedora, NixOS, or Debian Trixie automatically ship with compilers that work out of the box.
 
 ### Checks
 
@@ -942,7 +940,7 @@ Invalid model and language values are rejected before recording starts.
 
 ## Uninstallation
 
-Your system goes back to the **exact state** it was in **before** you touched the **project**.
+Your system goes back to the **exact state** it was in before you installed the project.
 
 ```bash
 ./package/uninstall

@@ -79,15 +79,6 @@ void _append_chunk(std::vector<std::uint8_t>& bytes, const WavChunk& chunk)
   }
 }
 
-void _write_bytes(const std::filesystem::path& path, const std::vector<std::uint8_t>& bytes)
-{
-  std::ofstream file(path, std::ios::binary);
-
-  for (const std::uint8_t byte : bytes) {
-    file.put(static_cast<char>(byte));
-  }
-}
-
 std::vector<std::uint8_t> _sample_data(std::span<const std::int16_t> samples)
 {
   std::vector<std::uint8_t> bytes;
@@ -226,10 +217,20 @@ void write_riff_size(std::vector<std::uint8_t>& bytes, std::uint32_t value)
   bytes[write.offset + 3] = static_cast<std::uint8_t>((write.value >> 24U) & 0xFFU);
 }
 
+void write_bytes(std::ostream& out, std::span<const std::uint8_t> bytes)
+{
+  for (const auto byte : bytes) {
+    out.put(static_cast<char>(byte));
+  }
+}
+
 yx::Result<std::vector<float>> read_samples(const std::vector<std::uint8_t>& bytes)
 {
   const auto path = _wav_path();
-  _write_bytes(path, bytes);
+  {
+    std::ofstream out(path, std::ios::binary);
+    write_bytes(out, bytes);
+  }
   const auto samples = engine::audio::read_pcm16_wav(path.string());
   yx::ignore_failure(platform::safe_delete_file(path));
   return samples;

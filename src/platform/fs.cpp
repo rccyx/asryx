@@ -15,7 +15,7 @@ yx::Result<std::filesystem::path> _require_home_path()
 {
   const char* const home = std::getenv("HOME");
   if (!home || *home == '\0') {
-    return yx::fail("HOME environment variable not set");
+    return yx::fail(yx::ErrorCode::filesystem, "HOME environment variable not set");
   }
 
   return yx::ok(std::filesystem::path(home));
@@ -66,7 +66,8 @@ bool is_owned_path(const std::filesystem::path& path)
 yx::Result<void> safe_delete_file(const std::filesystem::path& path)
 {
   if (!is_owned_path(path)) {
-    return yx::fail("Permission denied: path is not owned by asryx: " + path.string());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "Permission denied: path is not owned by asryx: " + path.string());
   }
 
   std::error_code error;
@@ -76,7 +77,8 @@ yx::Result<void> safe_delete_file(const std::filesystem::path& path)
   }
 
   if (error) {
-    return yx::fail("failed to inspect file for deletion: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to inspect file for deletion: " + error.message());
   }
 
   if (!std::filesystem::exists(status)) {
@@ -85,7 +87,7 @@ yx::Result<void> safe_delete_file(const std::filesystem::path& path)
 
   std::filesystem::remove(path, error);
   if (error) {
-    return yx::fail("failed to delete file: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem, "failed to delete file: " + error.message());
   }
 
   return yx::ok();
@@ -94,19 +96,21 @@ yx::Result<void> safe_delete_file(const std::filesystem::path& path)
 yx::Result<void> safe_delete_directory(const std::filesystem::path& path)
 {
   if (!is_owned_path(path)) {
-    return yx::fail("Permission denied: path is not owned by asryx: " + path.string());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "Permission denied: path is not owned by asryx: " + path.string());
   }
 
   std::error_code error;
   if (std::filesystem::exists(path, error)) {
     std::filesystem::remove_all(path, error);
     if (error) {
-      return yx::fail("failed to delete directory: " + error.message());
+      return yx::fail(yx::ErrorCode::filesystem, "failed to delete directory: " + error.message());
     }
   }
 
   if (error) {
-    return yx::fail("failed to inspect directory for deletion: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to inspect directory for deletion: " + error.message());
   }
 
   return yx::ok();

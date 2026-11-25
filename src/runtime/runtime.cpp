@@ -5,6 +5,7 @@
 #include "platform/fs.hpp"
 #include "runtime/recording/recording.hpp"
 #include "runtime/session/session.hpp"
+#include "runtime/stream/stream.hpp"
 #include "runtime/transcription/transcription.hpp"
 
 #include <filesystem>
@@ -74,7 +75,7 @@ yx::Result<bool> _cancel_recording(const std::filesystem::path& runtime_dir)
 {
   const auto acquired = session::acquire_lock(runtime_dir);
   if (!acquired) {
-    return yx::fail(acquired.error());
+    return std::unexpected(acquired.error());
   }
 
   if (!*acquired) {
@@ -87,27 +88,35 @@ yx::Result<bool> _cancel_recording(const std::filesystem::path& runtime_dir)
     return yx::ok(true);
   }
 
+  if (stream::active(runtime_dir)) {
+    const auto marker = session::create_cancel_marker(runtime_dir);
+    if (!marker) {
+      yx::ignore_failure(session::release_lock(runtime_dir));
+      return std::unexpected(marker.error());
+    }
+  }
+
   const auto stopped = engine::stop_recording(*rec_pid);
   if (!stopped) {
     yx::ignore_failure(session::release_lock(runtime_dir));
-    return yx::fail(stopped.error());
+    return std::unexpected(stopped.error());
   }
 
   if (!*stopped) {
     yx::ignore_failure(session::release_lock(runtime_dir));
-    return yx::fail("recorder didn't stop!");
+    return yx::fail(yx::ErrorCode::recorder, "recorder didn't stop!");
   }
 
   const auto cleaned = session::clean_payload(runtime_dir);
   if (!cleaned) {
     yx::ignore_failure(session::release_lock(runtime_dir));
-    return yx::fail(cleaned.error());
+    return std::unexpected(cleaned.error());
   }
 
   yx::ignore_failure(engine::send_notification(std::string(constants::notifications::cancelled)));
   const auto released = session::release_lock(runtime_dir);
   if (!released) {
-    return yx::fail(released.error());
+    return std::unexpected(released.error());
   }
 
   return yx::ok(true);
@@ -117,7 +126,7 @@ yx::Result<void> _cancel_transcribing(const std::filesystem::path& runtime_dir)
 {
   const auto marker = session::create_cancel_marker(runtime_dir);
   if (!marker) {
-    return yx::fail(marker.error());
+    return std::unexpected(marker.error());
   }
 
   if (!*marker) {
@@ -134,6 +143,18 @@ yx::Result<void> _cancel_transcribing(const std::filesystem::path& runtime_dir)
   }
 
   return yx::ok();
+}
+
+yx::Result<void> _toggle_recording(const std::filesystem::path& runtime_dir)
+{
+  const auto rec_pid = session::live_recorder_pid(runtime_dir);
+  if (!rec_pid) {
+    return recording::start(runtime_dir);
+  }
+  if (stream::active(runtime_dir)) {
+    return stream::stop_and_deliver(runtime_dir, *rec_pid);
+  }
+  return transcription::stop_and_transcribe(runtime_dir, *rec_pid);
 }
 
 } // namespace
@@ -157,7 +178,7 @@ yx::Result<void> cancel()
     const auto cancelled = _cancel_recording(runtime_dir);
     if (!cancelled) {
       _handle_runtime_error(runtime_dir, cancelled.error());
-      return yx::fail(cancelled.error());
+      return std::unexpected(cancelled.error());
     }
 
     if (*cancelled) {
@@ -194,29 +215,31 @@ yx::Result<void> toggle()
   const auto acquired = session::acquire_lock(runtime_dir);
   if (!acquired) {
     _handle_runtime_error(runtime_dir, acquired.error());
-    return yx::fail(acquired.error());
+    return std::unexpected(acquired.error());
   }
 
   if (!*acquired) {
     return yx::ok();
   }
 
-  const auto rec_pid = session::live_recorder_pid(runtime_dir);
-  const auto result = rec_pid.has_value()
-                          ? transcription::stop_and_transcribe(runtime_dir, *rec_pid)
-                          : recording::start(runtime_dir);
+  const auto result = _toggle_recording(runtime_dir);
   if (!result) {
     _handle_runtime_error(runtime_dir, result.error());
-    return yx::fail(result.error());
+    return std::unexpected(result.error());
   }
 
   const auto released = session::release_lock(runtime_dir);
   if (!released) {
     _handle_runtime_error(runtime_dir, released.error());
-    return yx::fail(released.error());
+    return std::unexpected(released.error());
   }
 
   return yx::ok();
+}
+
+yx::Result<int> run_rolling_worker()
+{
+  return stream::run_worker();
 }
 
 } // namespace runtime

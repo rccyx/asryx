@@ -55,13 +55,13 @@ yx::Result<ModelArtifact> parse_quantized_model(const std::string& name)
 
     const std::string family = name.substr(0, name.size() - suffix.size());
     if (!is_supported_full_model(family)) {
-      return yx::fail("unsupported model size: " + name);
+      return yx::fail(yx::ErrorCode::invalid_argument, "unsupported model size: " + name);
     }
 
     return yx::ok(ModelArtifact{.family = family, .quant = quant});
   }
 
-  return yx::fail("unsupported model size: " + name);
+  return yx::fail(yx::ErrorCode::invalid_argument, "unsupported model size: " + name);
 }
 
 } // namespace model::artifact

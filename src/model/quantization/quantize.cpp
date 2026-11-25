@@ -46,7 +46,8 @@ yx::Result<void> _rename_model_file(const std::filesystem::path& source,
   std::error_code error;
   std::filesystem::rename(source, target, error);
   if (error) {
-    return yx::fail("failed to store quantized model: " + error.message());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "failed to store quantized model: " + error.message());
   }
 
   return yx::ok();
@@ -56,7 +57,7 @@ yx::Result<void> _delete_stale_model_file(const std::filesystem::path& path)
 {
   const auto deleted = platform::safe_delete_file(path);
   if (!deleted) {
-    return yx::fail(deleted.error());
+    return std::unexpected(deleted.error());
   }
 
   return yx::ok();
@@ -66,16 +67,17 @@ yx::Result<void> _run_whisper_model_quantizer(const std::filesystem::path& quant
                                               const std::vector<std::string>& args)
 {
   if (!store::file_exists_nonempty(quantizer)) {
-    return yx::fail("missing whisper.cpp quantizer: " + quantizer.string());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "missing whisper.cpp quantizer: " + quantizer.string());
   }
 
   const auto success = platform::run_process_blocking(args);
   if (!success) {
-    return yx::fail(success.error());
+    return std::unexpected(success.error());
   }
 
   if (!*success) {
-    return yx::fail("failed to quantize model");
+    return yx::fail(yx::ErrorCode::invalid_argument, "failed to quantize model");
   }
 
   return yx::ok();
@@ -86,27 +88,29 @@ yx::Result<void> _run_whisper_model_quantizer(const std::filesystem::path& quant
 yx::Result<void> quantize_model(const std::string& name, const std::string& quant)
 {
   if (!artifact::is_supported_full_model(name)) {
-    return yx::fail("unsupported model size: " + name);
+    return yx::fail(yx::ErrorCode::invalid_argument, "unsupported model size: " + name);
   }
 
   if (!artifact::is_supported_quant_type(quant)) {
-    return yx::fail("unsupported quant type: " + quant +
-                    "\nsupported quant types: " + _supported_quant_types_message());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "unsupported quant type: " + quant +
+                        "\nsupported quant types: " + _supported_quant_types_message());
   }
 
   const auto source_path = get_model_path(name);
   if (!source_path) {
-    return yx::fail(source_path.error());
+    return std::unexpected(source_path.error());
   }
 
   if (!store::file_exists_nonempty(*source_path)) {
-    return yx::fail("model '" + name +
-                    "' is not installed. Install it with: asryx --model install " + name);
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "model '" + name +
+                        "' is not installed. Install it with: asryx --model install " + name);
   }
 
   const auto target_path = _quantized_model_path({.family = name, .quant = quant});
   if (!target_path) {
-    return yx::fail(target_path.error());
+    return std::unexpected(target_path.error());
   }
 
   const std::string target_name = artifact::quantized_model_name({.family = name, .quant = quant});
@@ -120,12 +124,12 @@ yx::Result<void> quantize_model(const std::string& name, const std::string& quan
   const auto tmp_path = _temporary_model_path(*target_path);
   const auto deleted = _delete_stale_model_file(tmp_path);
   if (!deleted) {
-    return yx::fail(deleted.error());
+    return std::unexpected(deleted.error());
   }
 
   const auto quantizer = store::whisper_model_quantizer();
   if (!quantizer) {
-    return yx::fail(quantizer.error());
+    return std::unexpected(quantizer.error());
   }
 
   std::cout << "Quantizing model " << name << " as " << quant << "...\n";
@@ -133,19 +137,20 @@ yx::Result<void> quantize_model(const std::string& name, const std::string& quan
       *quantizer, {quantizer->string(), *source_path, tmp_path.string(), quant});
   if (!quantized) {
     yx::ignore_failure(_delete_stale_model_file(tmp_path));
-    return yx::fail("failed to quantize " + name + " as " + quant + ": " +
-                    quantized.error().message);
+    return yx::fail(yx::ErrorCode::invalid_argument, "failed to quantize " + name + " as " + quant +
+                                                         ": " + quantized.error().message);
   }
 
   if (!store::file_exists_nonempty(tmp_path)) {
     yx::ignore_failure(_delete_stale_model_file(tmp_path));
-    return yx::fail("quantizer did not create model: " + tmp_path.string());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "quantizer did not create model: " + tmp_path.string());
   }
 
   const auto renamed = _rename_model_file(tmp_path, *target_path);
   if (!renamed) {
     yx::ignore_failure(_delete_stale_model_file(tmp_path));
-    return yx::fail(renamed.error());
+    return std::unexpected(renamed.error());
   }
 
   std::cout << "Quantized model installed: " << target_name << "\n";

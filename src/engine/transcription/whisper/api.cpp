@@ -3,7 +3,10 @@
 #include "constants/constants.hpp"
 #include "engine/transcription/inference/backend.hpp"
 
+#include <algorithm>
 #include <filesystem>
+#include <iterator>
+#include <numeric>
 #include <string>
 #include <utility>
 
@@ -58,6 +61,19 @@ struct _vad_segments_deleter
 
 using _vad_segments = std::unique_ptr<whisper_vad_segments, _vad_segments_deleter>;
 
+_vad_segments _speech_segments(const SpeechInput& input)
+{
+  const _vad_context ctx(whisper_vad_init_from_file_with_params(
+      input.vad_model_path.c_str(), whisper_vad_default_context_params()));
+  if (!ctx) {
+    return {};
+  }
+
+  return _vad_segments(whisper_vad_segments_from_samples(ctx.get(), whisper_vad_default_params(),
+                                                         input.samples.data(),
+                                                         static_cast<int>(input.samples.size())));
+}
+
 const char* _language(whisper_context* ctx, const std::string& language)
 {
   if (whisper_is_multilingual(ctx) == 0) {
@@ -71,6 +87,7 @@ const char* _language(whisper_context* ctx, const std::string& language)
   return language.c_str();
 }
 
+// whisper's callback requires a mutable void pointer.
 // cppcheck-suppress constParameterCallback
 bool _abort_requested(void* user_data)
 {
@@ -109,8 +126,8 @@ whisper_full_params _transcription_params(const TranscribeInput& input, whisper_
   whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
   params.temperature = 0.0F;
-  params.temperature_inc = 0.2F;
-  params.greedy.best_of = 5;
+  params.temperature_inc = input.fast_decode ? 0.0F : 0.2F;
+  params.greedy.best_of = input.fast_decode ? 1 : 5;
   params.no_context = true;
 
   params.n_threads = inference::resolve_threads();
@@ -118,6 +135,7 @@ whisper_full_params _transcription_params(const TranscribeInput& input, whisper_
   params.print_realtime = false;
   params.print_timestamps = false;
   params.no_timestamps = false;
+  params.token_timestamps = input.token_timestamps;
 
   params.suppress_blank = true;
   params.suppress_nst = true;
@@ -128,7 +146,10 @@ whisper_full_params _transcription_params(const TranscribeInput& input, whisper_
 
   params.language = _language(ctx, input.request->language);
   params.detect_language = false;
-  params.initial_prompt = input.request->prompt.empty() ? nullptr : input.request->prompt.c_str();
+
+  const std::string& active_prompt =
+      input.prompt_override.empty() ? input.request->prompt : input.prompt_override;
+  params.initial_prompt = active_prompt.empty() ? nullptr : active_prompt.c_str();
 
   params.vad = input.use_vad;
   params.vad_model_path = input.request->vad_model_path.c_str();
@@ -167,7 +188,8 @@ yx::Result<Context> load_context(const std::string& model_path)
   state->ctx.reset(whisper_init_from_file_with_params(model_path.c_str(), context_params));
 
   if (state->ctx == nullptr) {
-    return yx::fail("failed to initialize whisper model: " + model_path);
+    return yx::fail(yx::ErrorCode::transcription,
+                    "failed to initialize whisper model: " + model_path);
   }
 
   return yx::ok(Context(std::move(state)));
@@ -208,20 +230,84 @@ std::string read_output(const Context& ctx)
   return output;
 }
 
-double detected_speech_seconds(const SpeechInput& input)
+std::vector<Word> read_words(const Context& ctx)
 {
-  const whisper_vad_context_params vad_ctx_params = whisper_vad_default_context_params();
-  _vad_context vctx(
-      whisper_vad_init_from_file_with_params(input.vad_model_path.c_str(), vad_ctx_params));
+  auto* const raw = ctx._state->ctx.get();
+  const whisper_token eot = whisper_token_eot(raw);
+  const int n_segments = whisper_full_n_segments(raw);
+  std::vector<Word> words;
 
-  if (!vctx) {
-    return 0.0;
+  for (int s = 0; s < n_segments; ++s) {
+    const std::int64_t seg_t0 = std::max<std::int64_t>(0, whisper_full_get_segment_t0(raw, s));
+    const std::int64_t seg_t1 = std::max<std::int64_t>(seg_t0, whisper_full_get_segment_t1(raw, s));
+    const int n_tokens = whisper_full_n_tokens(raw, s);
+
+    std::vector<Word> seg_words;
+    bool has_token_ts = false;
+
+    for (int t = 0; t < n_tokens; ++t) {
+      const whisper_token_data data = whisper_full_get_token_data(raw, s, t);
+      if (data.id >= eot) {
+        continue;
+      }
+
+      const char* const raw_text = whisper_full_get_token_text(raw, s, t);
+      if (raw_text == nullptr || raw_text[0] == '\0') {
+        continue;
+      }
+
+      if (data.t1 > data.t0 || data.t0 > seg_t0) {
+        has_token_ts = true;
+      }
+
+      std::string piece(raw_text);
+      const std::int64_t t0 = std::clamp<std::int64_t>(data.t0, seg_t0, seg_t1);
+      const std::int64_t t1 = std::clamp<std::int64_t>(data.t1, t0, seg_t1);
+
+      const bool starts_word =
+          seg_words.empty() || static_cast<unsigned char>(piece.front()) <= 0x20U;
+      if (starts_word) {
+        if (seg_words.empty() && !words.empty() &&
+            static_cast<unsigned char>(piece.front()) > 0x20U)
+        {
+          piece.insert(piece.begin(), ' ');
+        }
+        seg_words.push_back({t0, t1, std::move(piece)});
+      }
+      else {
+        seg_words.back().t1_cs = std::max(seg_words.back().t1_cs, t1);
+        seg_words.back().text += piece;
+      }
+    }
+
+    if (!seg_words.empty() && !has_token_ts && seg_t1 > seg_t0) {
+      const auto total_chars = std::accumulate(
+          seg_words.begin(), seg_words.end(), std::size_t{0},
+          [](std::size_t total, const Word& word) { return total + word.text.size(); });
+      if (total_chars > 0) {
+        std::size_t cursor = 0;
+        const std::int64_t span = seg_t1 - seg_t0;
+        const auto timestamp_at = [seg_t0, span, total_chars](std::size_t offset) {
+          return seg_t0 + ((span * static_cast<std::int64_t>(offset)) /
+                           static_cast<std::int64_t>(total_chars));
+        };
+        for (auto& w : seg_words) {
+          w.t0_cs = timestamp_at(cursor);
+          cursor += w.text.size();
+          w.t1_cs = timestamp_at(cursor);
+        }
+      }
+    }
+
+    std::move(seg_words.begin(), seg_words.end(), std::back_inserter(words));
   }
 
-  const whisper_vad_params vad_params = whisper_vad_default_params();
-  _vad_segments segments(whisper_vad_segments_from_samples(
-      vctx.get(), vad_params, input.samples.data(), static_cast<int>(input.samples.size())));
+  return words;
+}
 
+double detected_speech_seconds(const SpeechInput& input)
+{
+  const auto segments = _speech_segments(input);
   if (!segments) {
     return 0.0;
   }
@@ -235,6 +321,26 @@ double detected_speech_seconds(const SpeechInput& input)
   }
 
   return total_cs / 100.0;
+}
+
+yx::Result<std::size_t> speech_end(const SpeechInput& input)
+{
+  const auto segments = _speech_segments(input);
+  if (!segments) {
+    return yx::fail(yx::ErrorCode::transcription, "cannot detect speech in rolling audio");
+  }
+
+  const int count = whisper_vad_segments_n_segments(segments.get());
+  if (count == 0) {
+    return yx::ok<std::size_t>(0U);
+  }
+
+  // keep a short tail so a cut at the vad boundary does not clip the last word.
+  constexpr float TAIL_CS = 25.0F;
+  const auto end = whisper_vad_segments_get_segment_t1(segments.get(), count - 1);
+  constexpr float SAMPLES_PER_CS = WHISPER_SAMPLE_RATE / 100.0F;
+  const auto samples = static_cast<std::size_t>((end + TAIL_CS) * SAMPLES_PER_CS);
+  return yx::ok(std::min(samples, input.samples.size()));
 }
 
 } // namespace engine::transcription::whisper

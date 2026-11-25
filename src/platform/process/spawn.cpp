@@ -11,12 +11,12 @@ yx::Result<pid_t> spawn_process_background(const std::vector<std::string>& argv,
                                            const std::string& redirect_file)
 {
   if (argv.empty()) {
-    return yx::fail("cannot spawn empty command");
+    return yx::fail(yx::ErrorCode::process, "cannot spawn empty command");
   }
 
   const pid_t pid = fork();
   if (pid < 0) {
-    return yx::fail("failed to fork process");
+    return yx::fail(yx::ErrorCode::process, "failed to fork process");
   }
 
   if (pid == 0) {
@@ -35,7 +35,8 @@ yx::Result<int> wait_process(pid_t pid)
 {
   int status = 0;
   if (waitpid(pid, &status, 0) == -1) {
-    return yx::fail("failed to wait for process: " + std::string(std::strerror(errno)));
+    return yx::fail(yx::ErrorCode::process,
+                    "failed to wait for process: " + std::string(std::strerror(errno)));
   }
 
   return yx::ok(WIFEXITED(status) ? WEXITSTATUS(status) : -1);
@@ -44,12 +45,12 @@ yx::Result<int> wait_process(pid_t pid)
 yx::Result<bool> run_process_blocking(const std::vector<std::string>& argv)
 {
   if (argv.empty()) {
-    return yx::fail("cannot run empty command");
+    return yx::fail(yx::ErrorCode::process, "cannot run empty command");
   }
 
   const pid_t pid = fork();
   if (pid < 0) {
-    return yx::fail("failed to fork process");
+    return yx::fail(yx::ErrorCode::process, "failed to fork process");
   }
 
   if (pid == 0) {

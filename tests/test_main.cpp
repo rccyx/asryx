@@ -1,3 +1,4 @@
+#include "app/app.hpp"
 #include "tests/tests.hpp"
 
 #include <cstdlib>
@@ -6,8 +7,12 @@
 #include <iostream>
 #include <string>
 
-int main()
+int main(int argc, char* argv[])
 {
+  if (argc == 2) {
+    return app::run({argv[1]}).value_or(1);
+  }
+
   try {
     std::filesystem::path home_path = std::filesystem::absolute("./.asryx-test-home");
     std::filesystem::path runtime_path = std::filesystem::absolute("./.asryx-test-runtime");
@@ -64,6 +69,8 @@ int main()
     run_test_lock();
     run_test_process();
     run_test_runtime();
+    run_test_stream();
+    run_test_follow();
 
     std::cout << "All unit tests passed successfully!\n";
 

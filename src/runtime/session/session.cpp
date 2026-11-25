@@ -3,6 +3,7 @@
 #include "constants/constants.hpp"
 #include "platform/fs.hpp"
 #include "platform/process.hpp"
+#include "runtime/stream/stream.hpp"
 
 #include <array>
 #include <cctype>
@@ -48,7 +49,8 @@ yx::Result<void> _create_directory(const std::filesystem::path& path)
   std::error_code error;
   std::filesystem::create_directories(path, error);
   if (error) {
-    return yx::fail("failed to create runtime directory: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to create runtime directory: " + error.message());
   }
 
   return yx::ok();
@@ -58,19 +60,19 @@ yx::Result<void> _write_text_file(const std::filesystem::path& path, const std::
 {
   std::ofstream file(path);
   if (!file.is_open()) {
-    return yx::fail("failed to open file for writing: " + path.string());
+    return yx::fail(yx::ErrorCode::filesystem, "failed to open file for writing: " + path.string());
   }
   file << content;
   if (!file) {
-    return yx::fail("failed to write file: " + path.string());
+    return yx::fail(yx::ErrorCode::filesystem, "failed to write file: " + path.string());
   }
   file.flush();
   if (!file) {
-    return yx::fail("failed to flush file: " + path.string());
+    return yx::fail(yx::ErrorCode::filesystem, "failed to flush file: " + path.string());
   }
   file.close();
   if (!file) {
-    return yx::fail("failed to close file: " + path.string());
+    return yx::fail(yx::ErrorCode::filesystem, "failed to close file: " + path.string());
   }
   return yx::ok();
 }
@@ -153,7 +155,7 @@ yx::Result<bool> acquire_lock(const std::filesystem::path& runtime_dir)
 {
   const auto runtime_created = _create_directory(runtime_dir);
   if (!runtime_created) {
-    return yx::fail(runtime_created.error());
+    return std::unexpected(runtime_created.error());
   }
   const auto lock_dir = _lock_dir_path(runtime_dir);
 
@@ -163,14 +165,14 @@ yx::Result<bool> acquire_lock(const std::filesystem::path& runtime_dir)
   }
 
   if (ec && ec != std::errc::file_exists) {
-    return yx::fail("failed to create lock directory: " + ec.message());
+    return yx::fail(yx::ErrorCode::filesystem, "failed to create lock directory: " + ec.message());
   }
 
   const auto maybe_pid = _read_pid_file(lock_dir / std::string(constants::runtime::pid_file_name));
   if (!maybe_pid.has_value() || !platform::is_process_running(*maybe_pid)) {
     const auto deleted = platform::safe_delete_directory(lock_dir);
     if (!deleted) {
-      return yx::fail(deleted.error());
+      return std::unexpected(deleted.error());
     }
 
     ec.clear();
@@ -179,7 +181,8 @@ yx::Result<bool> acquire_lock(const std::filesystem::path& runtime_dir)
     }
 
     if (ec && ec != std::errc::file_exists) {
-      return yx::fail("failed to create lock directory: " + ec.message());
+      return yx::fail(yx::ErrorCode::filesystem,
+                      "failed to create lock directory: " + ec.message());
     }
   }
 
@@ -205,13 +208,18 @@ yx::Result<void> write_recorder_pid(const std::filesystem::path& runtime_dir, pi
 {
   const auto runtime_created = _create_directory(runtime_dir);
   if (!runtime_created) {
-    return yx::fail(runtime_created.error());
+    return std::unexpected(runtime_created.error());
   }
   return _write_text_file(recorder_pid_path(runtime_dir), std::to_string(pid) + "\n");
 }
 
 yx::Result<void> clean_payload(const std::filesystem::path& runtime_dir)
 {
+  const auto rolling_cleaned = stream::clean(runtime_dir);
+  if (!rolling_cleaned) {
+    return rolling_cleaned;
+  }
+
   using PathBuilder = std::filesystem::path (*)(const std::filesystem::path&);
 
   static constexpr std::array<PathBuilder, 5> targets = {
@@ -220,7 +228,7 @@ yx::Result<void> clean_payload(const std::filesystem::path& runtime_dir)
   for (const auto& build_path : targets) {
     const auto deleted = platform::safe_delete_file(build_path(runtime_dir));
     if (!deleted) {
-      return yx::fail(deleted.error());
+      return std::unexpected(deleted.error());
     }
   }
 
@@ -231,7 +239,7 @@ yx::Result<void> write_state(const std::filesystem::path& runtime_dir, const std
 {
   const auto runtime_created = _create_directory(runtime_dir);
   if (!runtime_created) {
-    return yx::fail(runtime_created.error());
+    return std::unexpected(runtime_created.error());
   }
 
   return _write_text_file(_state_path(runtime_dir), state + "\n");
@@ -269,7 +277,7 @@ yx::Result<bool> create_cancel_marker(const std::filesystem::path& runtime_dir)
 {
   const auto runtime_created = _create_directory(runtime_dir);
   if (!runtime_created) {
-    return yx::fail(runtime_created.error());
+    return std::unexpected(runtime_created.error());
   }
 
   const auto marker_path = cancel_marker_path(runtime_dir);
@@ -279,17 +287,19 @@ yx::Result<bool> create_cancel_marker(const std::filesystem::path& runtime_dir)
       return yx::ok(false);
     }
 
-    return yx::fail("failed to create cancel marker: " + marker_path.string());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to create cancel marker: " + marker_path.string());
   }
 
   const int close_status = close(fd);
   if (close_status == -1) {
     const auto deleted = platform::safe_delete_file(marker_path);
     if (!deleted) {
-      return yx::fail(deleted.error());
+      return std::unexpected(deleted.error());
     }
 
-    return yx::fail("failed to close cancel marker: " + std::string(std::strerror(errno)));
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to close cancel marker: " + std::string(std::strerror(errno)));
   }
 
   return yx::ok(true);
@@ -324,13 +334,13 @@ yx::Result<std::filesystem::path> write_log(const std::filesystem::path& runtime
 {
   const auto runtime_created = _create_directory(runtime_dir);
   if (!runtime_created) {
-    return yx::fail(runtime_created.error());
+    return std::unexpected(runtime_created.error());
   }
 
   auto path = runtime_dir / std::string(constants::runtime::error_log_file);
   const auto written = _write_text_file(path, content);
   if (!written) {
-    return yx::fail(written.error());
+    return std::unexpected(written.error());
   }
 
   return yx::ok(std::move(path));

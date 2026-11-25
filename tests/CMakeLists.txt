@@ -5,12 +5,10 @@ find_package(libassert CONFIG REQUIRED)
 file(GLOB_RECURSE TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 file(GLOB_RECURSE CORE_SOURCES "${PROJECT_SOURCE_DIR}/src/*.cpp")
-list(FILTER CORE_SOURCES EXCLUDE REGEX "${PROJECT_SOURCE_DIR}/src/engine/transcription/.*\\.cpp$")
 set(TEST_EXCLUDED_SOURCES
     "${PROJECT_SOURCE_DIR}/src/main.cpp"
     "${PROJECT_SOURCE_DIR}/src/engine/engine.cpp"
-    "${PROJECT_SOURCE_DIR}/src/engine/output.cpp"
-    "${PROJECT_SOURCE_DIR}/src/engine/recorder/recorder.cpp")
+    "${PROJECT_SOURCE_DIR}/src/engine/output.cpp")
 list(REMOVE_ITEM CORE_SOURCES ${TEST_EXCLUDED_SOURCES})
 
 add_executable(asryx_tests ${TEST_SOURCES} ${CORE_SOURCES})
@@ -20,7 +18,7 @@ target_include_directories(
 )
 target_compile_definitions(asryx_tests PRIVATE ASRYX_BUILD_DIR="${CMAKE_BINARY_DIR}"
                                                ${BACKEND_DEFINITION})
-target_link_libraries(asryx_tests PRIVATE libassert::assert)
+target_link_libraries(asryx_tests PRIVATE libassert::assert whisper)
 
 enable_warnings(asryx_tests)
 enable_hardening(asryx_tests)

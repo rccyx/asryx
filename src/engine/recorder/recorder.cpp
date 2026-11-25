@@ -43,7 +43,7 @@ yx::Result<std::vector<std::string>> _args(const std::string& wav_path)
 {
   const auto has_pw_record = platform::command_exists("pw-record");
   if (!has_pw_record) {
-    return yx::fail(has_pw_record.error());
+    return std::unexpected(has_pw_record.error());
   }
 
   if (*has_pw_record) {
@@ -53,7 +53,7 @@ yx::Result<std::vector<std::string>> _args(const std::string& wav_path)
 
   const auto has_arecord = platform::command_exists("arecord");
   if (!has_arecord) {
-    return yx::fail(has_arecord.error());
+    return std::unexpected(has_arecord.error());
   }
 
   if (*has_arecord) {
@@ -61,7 +61,7 @@ yx::Result<std::vector<std::string>> _args(const std::string& wav_path)
                                            "-r", "16000", wav_path});
   }
 
-  return yx::fail("No recorder tool found (need pw-record or arecord)");
+  return yx::fail(yx::ErrorCode::recorder, "No recorder tool found (need pw-record or arecord)");
 }
 
 } // namespace
@@ -70,12 +70,12 @@ yx::Result<pid_t> start(const std::string& wav_path, const std::string& err_path
 {
   const auto args = _args(wav_path);
   if (!args) {
-    return yx::fail(args.error());
+    return std::unexpected(args.error());
   }
 
   const auto pid = platform::spawn_process_background(*args, err_path);
   if (!pid) {
-    return yx::fail(pid.error());
+    return std::unexpected(pid.error());
   }
 
   return yx::ok(*pid);
@@ -84,12 +84,12 @@ yx::Result<pid_t> start(const std::string& wav_path, const std::string& err_path
 yx::Result<bool> stop(pid_t pid)
 {
   if (pid <= 0) {
-    return yx::fail("invalid recorder process id");
+    return yx::fail(yx::ErrorCode::recorder, "invalid recorder process id");
   }
 
   const auto interrupted = platform::stop_process(pid, SIGINT);
   if (!interrupted) {
-    return yx::fail(interrupted.error());
+    return std::unexpected(interrupted.error());
   }
 
   if (_wait_until_exited(pid)) {
@@ -98,7 +98,7 @@ yx::Result<bool> stop(pid_t pid)
 
   const auto terminated = platform::stop_process(pid, SIGTERM);
   if (!terminated) {
-    return yx::fail(terminated.error());
+    return std::unexpected(terminated.error());
   }
 
   if (_wait_until_exited(pid)) {
@@ -107,7 +107,7 @@ yx::Result<bool> stop(pid_t pid)
 
   const auto killed = platform::stop_process(pid, SIGKILL);
   if (!killed) {
-    return yx::fail(killed.error());
+    return std::unexpected(killed.error());
   }
 
   return yx::ok(_wait_until_exited(pid));

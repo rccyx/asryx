@@ -10,12 +10,12 @@ yx::Result<std::vector<float>> read_pcm16_wav(const std::string& path)
 {
   const auto bytes = read_audio_file(path);
   if (!bytes) {
-    return yx::fail(bytes.error());
+    return std::unexpected(bytes.error());
   }
 
   const auto wav = parse_pcm16_wav(*bytes);
   if (!wav) {
-    return yx::fail(wav.error());
+    return std::unexpected(wav.error());
   }
 
   return decode_pcm16(*wav);
