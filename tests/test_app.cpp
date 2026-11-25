@@ -3,18 +3,16 @@
 #include "constants/constants.hpp"
 #include "error.hpp"
 #include "platform/fs.hpp"
-#include "platform/process.hpp"
 #include "runtime/runtime.hpp"
+#include "runtime/stream/stream.hpp"
 #include "tests/model_store.hpp"
 #include "tests/tests.hpp"
 
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <libassert/assert.hpp>
 #include <span>
 #include <string>
-#include <sys/types.h>
 #include <vector>
 
 namespace {
@@ -74,22 +72,6 @@ void assert_control_commands_do_not_record(std::span<const std::vector<std::stri
   }
 }
 
-void stop_started_recording()
-{
-  std::ifstream pid_file(runtime_file(std::string(constants::runtime::recorder_pid_file)));
-  pid_t pid = 0;
-  pid_file >> pid;
-
-  if (pid > 0) {
-    if (pid != getpid()) {
-      yx::ignore_failure(platform::stop_process(pid));
-      yx::ignore_failure(platform::wait_process(pid));
-    }
-  }
-
-  clean_runtime_files();
-}
-
 } // namespace
 
 void run_test_app()
@@ -106,7 +88,9 @@ void run_test_app()
   ASSERT(status.has_value());
   ASSERT(*status == std::string(constants::runtime::recording_state));
   ASSERT(recording_files_exist());
-  stop_started_recording();
+  ASSERT(runtime::stream::active(platform::get_runtime_directory()));
+  ASSERT(app::run({"cancel"}).value_or(1) == 0);
+  ASSERT(!runtime::stream::active(platform::get_runtime_directory()));
 
   const std::vector<std::vector<std::string>> control_commands = {
       {"status"},
@@ -118,19 +102,14 @@ void run_test_app()
       {"--pipe-to", "tee -a ~/x.txt"},
       {"--prompt", "Project Atlas, Kubernetes, PostgreSQL, OAuth"},
       {"cancel"},
-      {"--rolling"},
   };
   assert_control_commands_do_not_record(control_commands);
 
   auto loaded_config = config::load_config();
   ASSERT(loaded_config.has_value());
   auto cfg = *loaded_config;
-  ASSERT(cfg.rolling);
   ASSERT(cfg.pipe_to == std::string("tee -a ~/x.txt"));
   ASSERT(cfg.prompt == std::string("Project Atlas, Kubernetes, PostgreSQL, OAuth"));
-
-  assert_control_command_does_not_record({"--no-rolling"});
-  ASSERT(!config::load_config()->rolling);
 
   assert_control_command_does_not_record({"--no-pipe"});
   loaded_config = config::load_config();

@@ -1,5 +1,3 @@
-# TLDR: TALK ABOTU TURBO & MODEL ACCURACY ETC
-
 <p align="center">
   <a href="./assets/demo.gif">
     <img src="./assets/demo.gif" alt="asryx demo" width="100%">
@@ -112,11 +110,9 @@ The binary starts when you invoke it, performs one operation, and exits.
 asryx
 ```
 
-On the first press, it starts recording and exits.
+On the first press, it starts recording and transcribes audio while you speak.
 
-Meaning, while you're talking, `asryx` itself isn't running. Only the native recorder remains, that's `pw-record` or `arecord`.
-
-On the second press, it stops recording, loads the weights into memory (base.en, large-v1, etc + VAD), transcribes the captured audio, delivers the result, cleans the session, and exits again.
+On the second press, it stops the recorder and delivers the transcript after the worker finishes the remaining audio.
 
 ## Runtime and locking
 

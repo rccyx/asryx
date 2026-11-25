@@ -41,7 +41,7 @@ yx::Result<void> start(const std::filesystem::path& runtime_dir)
       .and_then([&wav_path, &err_path] {
         return engine::start_recording(wav_path.string(), err_path.string());
       })
-      .and_then([&runtime_dir, rolling = config->rolling](pid_t pid) -> yx::Result<void> {
+      .and_then([&runtime_dir](pid_t pid) -> yx::Result<void> {
         if (!platform::is_process_running(pid)) {
           return yx::fail(yx::ErrorCode::recorder,
                           "recorder process exited before startup completed");
@@ -58,11 +58,9 @@ yx::Result<void> start(const std::filesystem::path& runtime_dir)
           return std::unexpected(state_written.error());
         }
 
-        if (rolling) {
-          const auto started = stream::start(runtime_dir);
-          if (!started) {
-            yx::ignore_failure(engine::send_notification("rolling unavailable; offline fallback"));
-          }
+        const auto started = stream::start(runtime_dir);
+        if (!started) {
+          yx::ignore_failure(engine::send_notification("rolling unavailable; offline fallback"));
         }
 
         return engine::send_notification("recording...").transform([](bool) {});

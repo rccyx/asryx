@@ -13,7 +13,7 @@ mkdir "$session"
 cp -- "$2" "$session/rec.wav"
 touch "$session/stream.finish"
 
-if ! XDG_RUNTIME_DIR="$runtime_root" "$1" --rolling-worker; then
+if ! XDG_RUNTIME_DIR="$runtime_root" "$1" transcription-worker; then
   if [[ -f "$session/stream.failed" ]]; then
     cat "$session/stream.failed" >&2
   fi

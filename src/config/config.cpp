@@ -42,9 +42,6 @@ yx::Result<Config> load_config()
           else if (key == constants::config::pipe_to_key) {
             config.pipe_to = value;
           }
-          else if (key == constants::config::rolling_key) {
-            config.rolling = value == "1";
-          }
           else if (key == constants::config::prompt_key) {
             config.prompt = value;
           }
@@ -78,7 +75,6 @@ yx::Result<void> save_config(const Config& config)
     file << constants::config::language_key << "=" << config.language << "\n";
     file << constants::config::pipe_to_key << "=" << config.pipe_to << "\n";
     file << constants::config::prompt_key << "=" << config.prompt << "\n";
-    file << constants::config::rolling_key << "=" << (config.rolling ? "1" : "0") << "\n";
     if (!file) {
       return yx::fail(yx::ErrorCode::filesystem,
                       "failed to write tmp config file: " + temp_path->string());

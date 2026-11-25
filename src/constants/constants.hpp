@@ -16,7 +16,6 @@ inline constexpr std::string_view temp_suffix = ".tmp";
 inline constexpr std::string_view model_key = "model";
 inline constexpr std::string_view language_key = "language";
 inline constexpr std::string_view pipe_to_key = "pipe_to";
-inline constexpr std::string_view rolling_key = "rolling";
 inline constexpr std::string_view prompt_key = "prompt";
 inline constexpr std::string_view default_model = "base.en";
 inline constexpr std::string_view default_language = "auto";

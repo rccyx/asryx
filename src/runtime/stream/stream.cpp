@@ -111,7 +111,7 @@ bool active(const Path& dir)
 
 yx::Result<void> start(const Path& dir)
 {
-  const auto child = platform::spawn_process_background({"/proc/self/exe", "--rolling-worker"},
+  const auto child = platform::spawn_process_background({"/proc/self/exe", "transcription-worker"},
                                                         (dir / "stream.err").string());
   if (!child) {
     return std::unexpected(child.error());

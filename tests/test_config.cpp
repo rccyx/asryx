@@ -14,9 +14,7 @@ void run_test_config()
   ASSERT(cfg.language == std::string(constants::config::default_language));
   ASSERT(cfg.pipe_to == std::string(""));
   ASSERT(cfg.prompt == std::string(""));
-  ASSERT(!cfg.rolling);
 
-  cfg.rolling = true;
   cfg.model = "small.en";
   cfg.pipe_to = "cat >/dev/null";
   cfg.prompt = "Project Atlas, Kubernetes, PostgreSQL, OAuth";
@@ -25,7 +23,6 @@ void run_test_config()
   loaded = config::load_config();
   ASSERT(loaded.has_value());
   config::Config cfg2 = *loaded;
-  ASSERT(cfg2.rolling);
   ASSERT(cfg2.model == std::string("small.en"));
   ASSERT(cfg2.language == std::string(constants::config::default_language));
   ASSERT(cfg2.pipe_to == std::string("cat >/dev/null"));

@@ -5,6 +5,7 @@
 #include "error.hpp"
 #include "platform/fs.hpp"
 #include "runtime/runtime.hpp"
+#include "runtime/stream/stream.hpp"
 #include "tests/model_store.hpp"
 
 #include <filesystem>
@@ -73,6 +74,7 @@ pid_t dead_pid()
 
 void clean_runtime()
 {
+  ASSERT(runtime::stream::clean(runtime_dir()).has_value());
   yx::ignore_failure(platform::safe_delete_directory(lock_dir()));
   yx::ignore_failure(
       platform::safe_delete_file(runtime_file(std::string(constants::runtime::recorder_pid_file))));
