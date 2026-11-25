@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <libassert/assert.hpp>
+#include <span>
 
 namespace {
 
@@ -16,17 +17,17 @@ void _growing_wav_preserves_partial_samples()
   const auto samples = audio_test::sample_triplet();
   auto bytes = audio_test::pcm16_wav(samples);
   audio_test::write_riff_size(bytes, 0xffffffffU);
-  const auto header_size = bytes.size() - samples.size() * 2;
+  const auto header_size = bytes.size() - (samples.size() * 2);
+  const std::span<const std::uint8_t> wav(bytes);
   {
     std::ofstream out(path, std::ios::binary);
-    out.write(reinterpret_cast<const char*>(bytes.data()),
-              static_cast<std::streamsize>(header_size));
+    audio_test::write_bytes(out, wav.first(header_size));
   }
   auto follower = engine::audio::WavFollower::open(path);
   ASSERT(follower.has_value());
   {
     std::ofstream out(path, std::ios::binary | std::ios::app);
-    out.write(reinterpret_cast<const char*>(bytes.data() + header_size), 3);
+    audio_test::write_bytes(out, wav.subspan(header_size, 3));
   }
   const auto first = follower->read();
   ASSERT(first.has_value());
@@ -34,7 +35,7 @@ void _growing_wav_preserves_partial_samples()
   ASSERT((*first)[0] == static_cast<float>(samples[0]) / 32768.0F);
   {
     std::ofstream out(path, std::ios::binary | std::ios::app);
-    out.write(reinterpret_cast<const char*>(bytes.data() + header_size + 3), 1);
+    audio_test::write_bytes(out, wav.subspan(header_size + 3, 1));
   }
   const auto second = follower->read();
   ASSERT(second.has_value());

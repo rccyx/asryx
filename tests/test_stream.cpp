@@ -28,7 +28,8 @@ void _repeated_words_survive_confirmed_segment_trimming()
   });
   std::vector<float> samples(65 * rolling::RATE);
   for (std::size_t i = 0; i < samples.size(); ++i) {
-    samples[i] = static_cast<float>(i / rolling::RATE);
+    const auto second = i / rolling::RATE;
+    samples[i] = static_cast<float>(second);
   }
   ASSERT(processor.append(samples).has_value());
   const auto transcript = processor.finish();

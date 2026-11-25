@@ -66,6 +66,7 @@ yx::Result<std::string> run(const TranscriptionRequest& request)
       .samples = std::span<const float>(*samples),
       .use_vad = true,
       .permissive_no_speech = false,
+      .prompt_override = {},
   };
 
   if (!whisper::transcribe(primary_input)) {
@@ -97,6 +98,7 @@ yx::Result<std::string> run(const TranscriptionRequest& request)
         .samples = std::span<const float>(*samples),
         .use_vad = false,
         .permissive_no_speech = true,
+        .prompt_override = {},
     };
 
     if (whisper::transcribe(fallback_input)) {

@@ -52,7 +52,7 @@ struct TranscribeInput
   std::span<const float> samples;
   bool use_vad;
   bool permissive_no_speech;
-  std::string prompt_override = {};
+  std::string prompt_override;
   bool fast_decode = false;
   bool token_timestamps = false;
 };

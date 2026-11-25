@@ -37,12 +37,12 @@ private:
   std::uint64_t _decoded_at = 0;
 
 public:
-  Processor(Decode decode, std::string base_prompt = {});
+  explicit Processor(Decode decode, std::string base_prompt = {});
   yx::Result<void> append(std::span<const float> samples);
   yx::Result<std::string> finish();
 
 private:
-  std::string _build_prompt() const;
+  [[nodiscard]] std::string _build_prompt() const;
   yx::Result<void> _process(bool final);
   void _confirm(const std::vector<Word>& current);
   void _force_advance(const std::vector<Word>& current);

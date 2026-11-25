@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <iterator>
+#include <numeric>
 #include <string>
 #include <utility>
 
@@ -85,6 +87,8 @@ const char* _language(whisper_context* ctx, const std::string& language)
   return language.c_str();
 }
 
+// whisper's callback requires a mutable void pointer.
+// cppcheck-suppress constParameterCallback
 bool _abort_requested(void* user_data)
 {
   if (user_data == nullptr) {
@@ -277,26 +281,25 @@ std::vector<Word> read_words(const Context& ctx)
     }
 
     if (!seg_words.empty() && !has_token_ts && seg_t1 > seg_t0) {
-      std::size_t total_chars = 0;
-      for (const auto& w : seg_words) {
-        total_chars += w.text.size();
-      }
+      const auto total_chars = std::accumulate(
+          seg_words.begin(), seg_words.end(), std::size_t{0},
+          [](std::size_t total, const Word& word) { return total + word.text.size(); });
       if (total_chars > 0) {
         std::size_t cursor = 0;
         const std::int64_t span = seg_t1 - seg_t0;
+        const auto timestamp_at = [seg_t0, span, total_chars](std::size_t offset) {
+          return seg_t0 + ((span * static_cast<std::int64_t>(offset)) /
+                           static_cast<std::int64_t>(total_chars));
+        };
         for (auto& w : seg_words) {
-          w.t0_cs = seg_t0 + (span * static_cast<std::int64_t>(cursor)) /
-                                 static_cast<std::int64_t>(total_chars);
+          w.t0_cs = timestamp_at(cursor);
           cursor += w.text.size();
-          w.t1_cs = seg_t0 + (span * static_cast<std::int64_t>(cursor)) /
-                                 static_cast<std::int64_t>(total_chars);
+          w.t1_cs = timestamp_at(cursor);
         }
       }
     }
 
-    for (auto& w : seg_words) {
-      words.push_back(std::move(w));
-    }
+    std::move(seg_words.begin(), seg_words.end(), std::back_inserter(words));
   }
 
   return words;
@@ -335,7 +338,8 @@ yx::Result<std::size_t> speech_end(const SpeechInput& input)
   // keep a short tail so a cut at the vad boundary does not clip the last word.
   constexpr float TAIL_CS = 25.0F;
   const auto end = whisper_vad_segments_get_segment_t1(segments.get(), count - 1);
-  const auto samples = static_cast<std::size_t>((end + TAIL_CS) * (WHISPER_SAMPLE_RATE / 100));
+  constexpr float SAMPLES_PER_CS = WHISPER_SAMPLE_RATE / 100.0F;
+  const auto samples = static_cast<std::size_t>((end + TAIL_CS) * SAMPLES_PER_CS);
   return yx::ok(std::min(samples, input.samples.size()));
 }
 

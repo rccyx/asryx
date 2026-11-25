@@ -145,6 +145,18 @@ yx::Result<void> _cancel_transcribing(const std::filesystem::path& runtime_dir)
   return yx::ok();
 }
 
+yx::Result<void> _toggle_recording(const std::filesystem::path& runtime_dir)
+{
+  const auto rec_pid = session::live_recorder_pid(runtime_dir);
+  if (!rec_pid) {
+    return recording::start(runtime_dir);
+  }
+  if (stream::active(runtime_dir)) {
+    return stream::stop_and_deliver(runtime_dir, *rec_pid);
+  }
+  return transcription::stop_and_transcribe(runtime_dir, *rec_pid);
+}
+
 } // namespace
 
 yx::Result<std::string> get_status()
@@ -210,12 +222,7 @@ yx::Result<void> toggle()
     return yx::ok();
   }
 
-  const auto rec_pid = session::live_recorder_pid(runtime_dir);
-  const auto result = rec_pid.has_value()
-                          ? (stream::active(runtime_dir)
-                                 ? stream::stop_and_deliver(runtime_dir, *rec_pid)
-                                 : transcription::stop_and_transcribe(runtime_dir, *rec_pid))
-                          : recording::start(runtime_dir);
+  const auto result = _toggle_recording(runtime_dir);
   if (!result) {
     _handle_runtime_error(runtime_dir, result.error());
     return std::unexpected(result.error());

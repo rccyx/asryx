@@ -19,17 +19,19 @@ namespace {
 
 yx::Result<std::int64_t> _data_offset(const std::vector<std::uint8_t>& head)
 {
-  if (head.size() < 44 || !chunk_is(head, {0, "RIFF"}) || !chunk_is(head, {8, "WAVE"})) {
+  if (head.size() < 44 || !chunk_is(head, {.offset = 0, .id = "RIFF"}) ||
+      !chunk_is(head, {.offset = 8, .id = "WAVE"}))
+  {
     return yx::fail(yx::ErrorCode::audio_format, "growing WAV header is not available or invalid");
   }
   bool format_ok = false;
   for (std::size_t pos = 12; pos + 8 <= head.size();) {
     const auto bytes = *read_u32_le(head, pos + 4);
-    if (chunk_is(head, {pos, "fmt "})) {
+    if (chunk_is(head, {.offset = pos, .id = "fmt "})) {
       const auto format = read_wav_format({.bytes = &head, .offset = pos + 8, .chunk_size = bytes});
       format_ok = format && validate_wav_format(*format).has_value();
     }
-    if (chunk_is(head, {pos, "data"})) {
+    if (chunk_is(head, {.offset = pos, .id = "data"})) {
       return format_ok ? yx::ok(static_cast<std::int64_t>(pos + 8))
                        : yx::Result<std::int64_t>(yx::fail(yx::ErrorCode::audio_format,
                                                            "expected mono 16 kHz PCM16 WAV"));
@@ -70,7 +72,7 @@ yx::Result<WavFollower> WavFollower::open(const std::filesystem::path& path)
                     "cannot open growing WAV: " + std::string(std::strerror(errno)));
   }
   std::vector<std::uint8_t> head(4096);
-  ssize_t count;
+  ssize_t count = 0;
   do {
     count = ::pread(fd, head.data(), head.size(), 0);
   } while (count < 0 && errno == EINTR);
@@ -99,7 +101,7 @@ yx::Result<std::vector<float>> WavFollower::read()
     return yx::ok(std::vector<float>{});
   }
   std::vector<std::uint8_t> bytes(count);
-  ssize_t n;
+  ssize_t n = 0;
   do {
     n = ::pread(_fd, bytes.data(), count, _offset);
   } while (n < 0 && errno == EINTR);

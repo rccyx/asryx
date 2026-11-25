@@ -8,7 +8,9 @@
 #include "model/model.hpp"
 #include "runtime/session/session.hpp"
 
+#include <algorithm>
 #include <chrono>
+#include <iterator>
 #include <optional>
 #include <thread>
 #include <utility>
@@ -64,13 +66,15 @@ yx::Result<std::vector<asr::rolling::Word>> _decode(asr::whisper::TranscribeInpu
   if (!asr::whisper::transcribe(input)) {
     return yx::fail(yx::ErrorCode::transcription, "rolling Whisper decode failed");
   }
-  const auto words = asr::whisper::read_words(*input.ctx);
+  auto words = asr::whisper::read_words(*input.ctx);
   std::vector<asr::rolling::Word> decoded;
   decoded.reserve(words.size());
-  for (const auto& word : words) {
-    decoded.push_back({static_cast<std::uint64_t>(word.t0_cs) * 160,
-                       static_cast<std::uint64_t>(word.t1_cs) * 160, word.text});
-  }
+  std::transform(words.begin(), words.end(), std::back_inserter(decoded),
+                 [](asr::whisper::Word& word) {
+                   return asr::rolling::Word{.begin = static_cast<std::uint64_t>(word.t0_cs) * 160,
+                                             .end = static_cast<std::uint64_t>(word.t1_cs) * 160,
+                                             .text = std::move(word.text)};
+                 });
   return yx::ok(std::move(decoded));
 }
 
@@ -91,14 +95,13 @@ yx::Result<engine::audio::WavFollower> _open_wav(const Path& dir)
 
 struct FollowInput
 {
-  const Path& dir;
-  engine::audio::WavFollower& wav;
-  asr::rolling::Processor& processor;
+  engine::audio::WavFollower wav;
+  asr::rolling::Processor processor;
 };
 
-yx::Result<std::string> _follow(const FollowInput& input)
+yx::Result<std::string> _follow(const Path& dir, FollowInput input)
 {
-  const auto& [dir, wav, processor] = input;
+  auto& [wav, processor] = input;
   while (!session::cancel_requested(dir)) {
     const bool finishing = std::filesystem::exists(dir / "stream.finish");
     const auto audio = wav.read();
@@ -151,7 +154,7 @@ yx::Result<std::string> compute(const Path& dir)
   if (!wav) {
     return std::unexpected(wav.error());
   }
-  return _follow({dir, *wav, processor});
+  return _follow(dir, {.wav = std::move(*wav), .processor = std::move(processor)});
 }
 
 } // namespace runtime::stream::worker

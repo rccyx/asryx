@@ -71,7 +71,7 @@ std::string Processor::_build_prompt() const
   }
 
   std::string combined = _base_prompt;
-  if (!combined.empty() && combined.back() != ' ' && !tail.empty() && tail.front() != ' ') {
+  if (combined.back() != ' ' && !tail.empty() && tail.front() != ' ') {
     combined.push_back(' ');
   }
   combined.append(tail);
