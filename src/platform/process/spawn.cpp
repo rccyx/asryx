@@ -35,7 +35,8 @@ yx::Result<int> wait_process(pid_t pid)
 {
   int status = 0;
   if (waitpid(pid, &status, 0) == -1) {
-    return yx::fail(yx::ErrorCode::process, "failed to wait for process: " + std::string(std::strerror(errno)));
+    return yx::fail(yx::ErrorCode::process,
+                    "failed to wait for process: " + std::string(std::strerror(errno)));
   }
 
   return yx::ok(WIFEXITED(status) ? WEXITSTATUS(status) : -1);

@@ -29,8 +29,10 @@ yx::Result<void> start(const std::filesystem::path& runtime_dir)
   }
 
   if (!*installed) {
-    return yx::fail(yx::ErrorCode::invalid_argument, "model '" + config->model +
-                    "' is not installed. Install it with: asryx --model install " + config->model);
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "model '" + config->model +
+                        "' is not installed. Install it with: asryx --model install " +
+                        config->model);
   }
 
   const auto wav_path = session::recorder_wav_path(runtime_dir);
@@ -41,7 +43,8 @@ yx::Result<void> start(const std::filesystem::path& runtime_dir)
       })
       .and_then([&runtime_dir, rolling = config->rolling](pid_t pid) -> yx::Result<void> {
         if (!platform::is_process_running(pid)) {
-          return yx::fail(yx::ErrorCode::recorder, "recorder process exited before startup completed");
+          return yx::fail(yx::ErrorCode::recorder,
+                          "recorder process exited before startup completed");
         }
 
         const auto pid_written = session::write_recorder_pid(runtime_dir, pid);

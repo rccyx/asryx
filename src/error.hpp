@@ -64,21 +64,21 @@ template <typename T> void ignore_failure(const Result<T>&) noexcept {}
 } // namespace yx
 
 // Value bindings live in the caller's scope; brace conditional invocations.
-#define YX_DETAIL_TRY_VALUE(name, expression) \
-  auto name##_expected = (expression); \
-  if (!name##_expected) \
-    return std::unexpected(std::move(name##_expected).error()); \
+#define YX_DETAIL_TRY_VALUE(name, expression)                                                      \
+  auto name##_expected = (expression);                                                             \
+  if (!name##_expected)                                                                            \
+    return std::unexpected(std::move(name##_expected).error());                                    \
   auto name = *std::move(name##_expected)
 
-#define YX_DETAIL_TRY_VOID(expression) \
-  do { \
-    auto yx_expected = (expression); \
-    if (!yx_expected) \
-      return std::unexpected(std::move(yx_expected).error()); \
+#define YX_DETAIL_TRY_VOID(expression)                                                             \
+  do {                                                                                             \
+    auto yx_expected = (expression);                                                               \
+    if (!yx_expected)                                                                              \
+      return std::unexpected(std::move(yx_expected).error());                                      \
   } while (false)
 
 #define YX_DETAIL_TRY_SELECT(_1, _2, selected, ...) selected
-#define YX_TRY(...) \
+#define YX_TRY(...)                                                                                \
   YX_DETAIL_TRY_SELECT(__VA_ARGS__, YX_DETAIL_TRY_VALUE, YX_DETAIL_TRY_VOID)(__VA_ARGS__)
 
 #endif // ASRYX_ERROR_HPP

@@ -119,7 +119,8 @@ yx::Result<WavChunks> read_wav_chunks(const std::vector<std::uint8_t>& bytes, si
   }
 
   if (chunks.sample_data.size % chunks.format.block_align != 0) {
-    return yx::fail(yx::ErrorCode::audio_format, "invalid wav file: data chunk is not block aligned");
+    return yx::fail(yx::ErrorCode::audio_format,
+                    "invalid wav file: data chunk is not block aligned");
   }
 
   return yx::ok(chunks);

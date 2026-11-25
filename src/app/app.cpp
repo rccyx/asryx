@@ -36,7 +36,8 @@ void _print_usage()
 yx::Result<void> _set_pipe_to(const std::string& command)
 {
   if (command.empty()) {
-    return yx::fail(yx::ErrorCode::invalid_argument, "--pipe-to requires a non-empty command string");
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "--pipe-to requires a non-empty command string");
   }
 
   return config::load_config().and_then([&command](config::Config config) {

@@ -22,8 +22,9 @@ yx::Result<void> _validate_prompt_tokens(int tokens)
     return yx::ok();
   }
 
-  return yx::fail(yx::ErrorCode::transcription, "prompt is " + std::to_string(tokens) + " tokens, maximum is " +
-                  std::to_string(MAX_PROMPT_TOKENS));
+  return yx::fail(yx::ErrorCode::transcription, "prompt is " + std::to_string(tokens) +
+                                                    " tokens, maximum is " +
+                                                    std::to_string(MAX_PROMPT_TOKENS));
 }
 
 } // namespace

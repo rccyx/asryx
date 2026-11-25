@@ -49,7 +49,8 @@ yx::Result<void> _create_directory(const std::filesystem::path& path)
   std::error_code error;
   std::filesystem::create_directories(path, error);
   if (error) {
-    return yx::fail(yx::ErrorCode::filesystem, "failed to create runtime directory: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to create runtime directory: " + error.message());
   }
 
   return yx::ok();
@@ -180,7 +181,8 @@ yx::Result<bool> acquire_lock(const std::filesystem::path& runtime_dir)
     }
 
     if (ec && ec != std::errc::file_exists) {
-      return yx::fail(yx::ErrorCode::filesystem, "failed to create lock directory: " + ec.message());
+      return yx::fail(yx::ErrorCode::filesystem,
+                      "failed to create lock directory: " + ec.message());
     }
   }
 
@@ -285,7 +287,8 @@ yx::Result<bool> create_cancel_marker(const std::filesystem::path& runtime_dir)
       return yx::ok(false);
     }
 
-    return yx::fail(yx::ErrorCode::filesystem, "failed to create cancel marker: " + marker_path.string());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to create cancel marker: " + marker_path.string());
   }
 
   const int close_status = close(fd);
@@ -295,7 +298,8 @@ yx::Result<bool> create_cancel_marker(const std::filesystem::path& runtime_dir)
       return std::unexpected(deleted.error());
     }
 
-    return yx::fail(yx::ErrorCode::filesystem, "failed to close cancel marker: " + std::string(std::strerror(errno)));
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to close cancel marker: " + std::string(std::strerror(errno)));
   }
 
   return yx::ok(true);

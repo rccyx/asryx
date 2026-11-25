@@ -12,7 +12,8 @@ yx::Result<bool> copy_to_clipboard(const std::string& text)
   const char* env_session = std::getenv("XDG_SESSION_TYPE");
 
   if (!env_session) {
-    return yx::fail(yx::ErrorCode::invalid_argument, std::string("Unsupported session type: XDG_SESSION_TYPE is not set"));
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    std::string("Unsupported session type: XDG_SESSION_TYPE is not set"));
   }
 
   const std::string session_type(env_session);
@@ -41,7 +42,8 @@ yx::Result<bool> copy_to_clipboard(const std::string& text)
     return yx::ok(false);
   }
 
-  return yx::fail(yx::ErrorCode::invalid_argument, std::string("Unsupported session type: ") + session_type);
+  return yx::fail(yx::ErrorCode::invalid_argument,
+                  std::string("Unsupported session type: ") + session_type);
 }
 
 yx::Result<bool> send_notification(const std::string& message)

@@ -79,13 +79,15 @@ yx::Result<void> copy_model_into_store(const std::filesystem::path& source,
                                        const std::filesystem::path& target)
 {
   if (!file_exists_nonempty(source)) {
-    return yx::fail(yx::ErrorCode::filesystem, "download did not produce model: " + source.string());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "download did not produce model: " + source.string());
   }
 
   std::error_code error;
   std::filesystem::create_directories(target.parent_path(), error);
   if (error) {
-    return yx::fail(yx::ErrorCode::filesystem, "failed to create model directory: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to create model directory: " + error.message());
   }
 
   const auto tmp = target.parent_path() / ("." + target.filename().string() + ".tmp");

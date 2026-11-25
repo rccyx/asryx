@@ -70,7 +70,8 @@ yx::Result<void> save_config(const Config& config)
   {
     std::ofstream file(*temp_path);
     if (!file.is_open()) {
-      return yx::fail(yx::ErrorCode::filesystem, "failed to open tmp conf file for writing: " + temp_path->string());
+      return yx::fail(yx::ErrorCode::filesystem,
+                      "failed to open tmp conf file for writing: " + temp_path->string());
     }
 
     file << constants::config::model_key << "=" << config.model << "\n";
@@ -79,17 +80,20 @@ yx::Result<void> save_config(const Config& config)
     file << constants::config::prompt_key << "=" << config.prompt << "\n";
     file << constants::config::rolling_key << "=" << (config.rolling ? "1" : "0") << "\n";
     if (!file) {
-      return yx::fail(yx::ErrorCode::filesystem, "failed to write tmp config file: " + temp_path->string());
+      return yx::fail(yx::ErrorCode::filesystem,
+                      "failed to write tmp config file: " + temp_path->string());
     }
 
     file.flush();
     if (!file) {
-      return yx::fail(yx::ErrorCode::filesystem, "failed to flush tmp config file: " + temp_path->string());
+      return yx::fail(yx::ErrorCode::filesystem,
+                      "failed to flush tmp config file: " + temp_path->string());
     }
 
     file.close();
     if (!file) {
-      return yx::fail(yx::ErrorCode::filesystem, "failed to close tmp config file: " + temp_path->string());
+      return yx::fail(yx::ErrorCode::filesystem,
+                      "failed to close tmp config file: " + temp_path->string());
     }
   }
 

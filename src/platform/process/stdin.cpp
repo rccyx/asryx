@@ -18,7 +18,8 @@ yx::Result<void> _ignore_sigpipe(struct sigaction& previous)
   sigemptyset(&ignored.sa_mask);
 
   if (sigaction(SIGPIPE, &ignored, &previous) == -1) {
-    return yx::fail(yx::ErrorCode::process, "failed to ignore SIGPIPE: " + std::string(std::strerror(errno)));
+    return yx::fail(yx::ErrorCode::process,
+                    "failed to ignore SIGPIPE: " + std::string(std::strerror(errno)));
   }
 
   return yx::ok();
@@ -27,7 +28,8 @@ yx::Result<void> _ignore_sigpipe(struct sigaction& previous)
 yx::Result<void> _restore_sigpipe(const struct sigaction& previous)
 {
   if (sigaction(SIGPIPE, &previous, nullptr) == -1) {
-    return yx::fail(yx::ErrorCode::process, "failed to restore SIGPIPE handler: " + std::string(std::strerror(errno)));
+    return yx::fail(yx::ErrorCode::process,
+                    "failed to restore SIGPIPE handler: " + std::string(std::strerror(errno)));
   }
 
   return yx::ok();

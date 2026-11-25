@@ -25,7 +25,8 @@ yx::Result<std::uint16_t> _read_wav_extensible_format(const WavFormatRead& read)
   const auto& bytes = *read.bytes;
 
   if (read.chunk_size < WAV_EXTENSIBLE_FORMAT_SIZE) {
-    return yx::fail(yx::ErrorCode::audio_format, "invalid wav fmt chunk: truncated WAVEFORMATEXTENSIBLE");
+    return yx::fail(yx::ErrorCode::audio_format,
+                    "invalid wav fmt chunk: truncated WAVEFORMATEXTENSIBLE");
   }
 
   const auto extra_size = read_u16_le(bytes, read.offset + 16);
@@ -38,13 +39,15 @@ yx::Result<std::uint16_t> _read_wav_extensible_format(const WavFormatRead& read)
   if (*extra_size < WAV_EXTENSIBLE_EXTRA_SIZE ||
       WAV_FORMAT_EX_SIZE + static_cast<size_t>(*extra_size) > read.chunk_size)
   {
-    return yx::fail(yx::ErrorCode::audio_format, "invalid wav fmt chunk: invalid extensible extra size");
+    return yx::fail(yx::ErrorCode::audio_format,
+                    "invalid wav fmt chunk: invalid extensible extra size");
   }
 
   if (std::memcmp(bytes.data() + read.offset + 24, PCM_SUBFORMAT_GUID.data(),
                   PCM_SUBFORMAT_GUID.size()) != 0)
   {
-    return yx::fail(yx::ErrorCode::audio_format, "unsupported wav format: extensible subtype is not PCM");
+    return yx::fail(yx::ErrorCode::audio_format,
+                    "unsupported wav format: extensible subtype is not PCM");
   }
 
   return yx::ok(*valid_bits);
@@ -110,15 +113,18 @@ yx::Result<void> validate_wav_format(const WavFormat& format)
       format.bits_per_sample != WAV_BITS_PER_SAMPLE ||
       format.valid_bits_per_sample != WAV_BITS_PER_SAMPLE)
   {
-    return yx::fail(yx::ErrorCode::audio_format, "unsupported wav format: expected 16 kHz mono s16 PCM");
+    return yx::fail(yx::ErrorCode::audio_format,
+                    "unsupported wav format: expected 16 kHz mono s16 PCM");
   }
 
   if (format.block_align != WAV_BLOCK_ALIGN) {
-    return yx::fail(yx::ErrorCode::audio_format, "invalid wav format: block alignment does not match mono s16 PCM");
+    return yx::fail(yx::ErrorCode::audio_format,
+                    "invalid wav format: block alignment does not match mono s16 PCM");
   }
 
   if (format.byte_rate != WAV_BYTE_RATE) {
-    return yx::fail(yx::ErrorCode::audio_format, "invalid wav format: byte rate does not match sample rate and block alignment");
+    return yx::fail(yx::ErrorCode::audio_format,
+                    "invalid wav format: byte rate does not match sample rate and block alignment");
   }
 
   return yx::ok();

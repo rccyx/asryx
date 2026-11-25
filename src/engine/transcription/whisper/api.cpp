@@ -3,6 +3,7 @@
 #include "constants/constants.hpp"
 #include "engine/transcription/inference/backend.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <string>
 #include <utility>
@@ -71,7 +72,6 @@ const char* _language(whisper_context* ctx, const std::string& language)
   return language.c_str();
 }
 
-// cppcheck-suppress constParameterCallback
 bool _abort_requested(void* user_data)
 {
   if (user_data == nullptr) {
@@ -128,7 +128,10 @@ whisper_full_params _transcription_params(const TranscribeInput& input, whisper_
 
   params.language = _language(ctx, input.request->language);
   params.detect_language = false;
-  params.initial_prompt = input.request->prompt.empty() ? nullptr : input.request->prompt.c_str();
+
+  const std::string& active_prompt =
+      input.prompt_override.empty() ? input.request->prompt : input.prompt_override;
+  params.initial_prompt = active_prompt.empty() ? nullptr : active_prompt.c_str();
 
   params.vad = input.use_vad;
   params.vad_model_path = input.request->vad_model_path.c_str();
@@ -167,7 +170,8 @@ yx::Result<Context> load_context(const std::string& model_path)
   state->ctx.reset(whisper_init_from_file_with_params(model_path.c_str(), context_params));
 
   if (state->ctx == nullptr) {
-    return yx::fail(yx::ErrorCode::transcription, "failed to initialize whisper model: " + model_path);
+    return yx::fail(yx::ErrorCode::transcription,
+                    "failed to initialize whisper model: " + model_path);
   }
 
   return yx::ok(Context(std::move(state)));
@@ -220,6 +224,44 @@ std::vector<Segment> read_segments(const Context& ctx)
                         text != nullptr ? text : ""});
   }
   return segments;
+}
+
+std::vector<Word> read_words(const Context& ctx)
+{
+  auto* const raw = ctx._state->ctx.get();
+  const whisper_token eot = whisper_token_eot(raw);
+  const int n_segments = whisper_full_n_segments(raw);
+  std::vector<Word> words;
+
+  for (int s = 0; s < n_segments; ++s) {
+    const int n_tokens = whisper_full_n_tokens(raw, s);
+    for (int t = 0; t < n_tokens; ++t) {
+      const whisper_token_data data = whisper_full_get_token_data(raw, s, t);
+      if (data.id >= eot) {
+        continue;
+      }
+
+      const char* const raw_text = whisper_full_get_token_text(raw, s, t);
+      if (raw_text == nullptr || raw_text[0] == '\0') {
+        continue;
+      }
+
+      std::string piece(raw_text);
+      const std::int64_t t0 = std::max<std::int64_t>(0, data.t0);
+      const std::int64_t t1 = std::max<std::int64_t>(t0, data.t1);
+
+      const bool starts_word = words.empty() || static_cast<unsigned char>(piece.front()) <= 0x20U;
+      if (starts_word) {
+        words.push_back({t0, t1, std::move(piece)});
+      }
+      else {
+        words.back().t1_cs = std::max(words.back().t1_cs, t1);
+        words.back().text += piece;
+      }
+    }
+  }
+
+  return words;
 }
 
 double detected_speech_seconds(const SpeechInput& input)

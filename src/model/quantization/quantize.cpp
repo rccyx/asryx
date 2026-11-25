@@ -46,7 +46,8 @@ yx::Result<void> _rename_model_file(const std::filesystem::path& source,
   std::error_code error;
   std::filesystem::rename(source, target, error);
   if (error) {
-    return yx::fail(yx::ErrorCode::invalid_argument, "failed to store quantized model: " + error.message());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "failed to store quantized model: " + error.message());
   }
 
   return yx::ok();
@@ -66,7 +67,8 @@ yx::Result<void> _run_whisper_model_quantizer(const std::filesystem::path& quant
                                               const std::vector<std::string>& args)
 {
   if (!store::file_exists_nonempty(quantizer)) {
-    return yx::fail(yx::ErrorCode::invalid_argument, "missing whisper.cpp quantizer: " + quantizer.string());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "missing whisper.cpp quantizer: " + quantizer.string());
   }
 
   const auto success = platform::run_process_blocking(args);
@@ -90,8 +92,9 @@ yx::Result<void> quantize_model(const std::string& name, const std::string& quan
   }
 
   if (!artifact::is_supported_quant_type(quant)) {
-    return yx::fail(yx::ErrorCode::invalid_argument, "unsupported quant type: " + quant +
-                    "\nsupported quant types: " + _supported_quant_types_message());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "unsupported quant type: " + quant +
+                        "\nsupported quant types: " + _supported_quant_types_message());
   }
 
   const auto source_path = get_model_path(name);
@@ -100,8 +103,9 @@ yx::Result<void> quantize_model(const std::string& name, const std::string& quan
   }
 
   if (!store::file_exists_nonempty(*source_path)) {
-    return yx::fail(yx::ErrorCode::invalid_argument, "model '" + name +
-                    "' is not installed. Install it with: asryx --model install " + name);
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "model '" + name +
+                        "' is not installed. Install it with: asryx --model install " + name);
   }
 
   const auto target_path = _quantized_model_path({.family = name, .quant = quant});
@@ -133,13 +137,14 @@ yx::Result<void> quantize_model(const std::string& name, const std::string& quan
       *quantizer, {quantizer->string(), *source_path, tmp_path.string(), quant});
   if (!quantized) {
     yx::ignore_failure(_delete_stale_model_file(tmp_path));
-    return yx::fail(yx::ErrorCode::invalid_argument, "failed to quantize " + name + " as " + quant + ": " +
-                    quantized.error().message);
+    return yx::fail(yx::ErrorCode::invalid_argument, "failed to quantize " + name + " as " + quant +
+                                                         ": " + quantized.error().message);
   }
 
   if (!store::file_exists_nonempty(tmp_path)) {
     yx::ignore_failure(_delete_stale_model_file(tmp_path));
-    return yx::fail(yx::ErrorCode::invalid_argument, "quantizer did not create model: " + tmp_path.string());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "quantizer did not create model: " + tmp_path.string());
   }
 
   const auto renamed = _rename_model_file(tmp_path, *target_path);

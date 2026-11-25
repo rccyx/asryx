@@ -22,6 +22,13 @@ struct Segment
   std::string text;
 };
 
+struct Word
+{
+  std::int64_t t0_cs;
+  std::int64_t t1_cs;
+  std::string text;
+};
+
 class Context final
 {
 public:
@@ -40,6 +47,7 @@ private:
   friend bool transcribe(const TranscribeInput& input);
   friend std::string read_output(const Context& ctx);
   friend std::vector<Segment> read_segments(const Context& ctx);
+  friend std::vector<Word> read_words(const Context& ctx);
 
   std::unique_ptr<_context_state> _state;
 };
@@ -51,6 +59,7 @@ struct TranscribeInput
   std::span<const float> samples;
   bool use_vad;
   bool permissive_no_speech;
+  std::string prompt_override = {};
 };
 
 struct SpeechInput
@@ -64,8 +73,9 @@ yx::Result<int> prompt_token_count(const Context& ctx, const std::string& prompt
 bool transcribe(const TranscribeInput& input);
 std::string read_output(const Context& ctx);
 std::vector<Segment> read_segments(const Context& ctx);
+std::vector<Word> read_words(const Context& ctx);
 double detected_speech_seconds(const SpeechInput& input);
 
 } // namespace engine::transcription::whisper
 
-#endif // ASRYX_ENGINE_TRANSCRIPTION_WHISPER_API_HPP
+#endif

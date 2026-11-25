@@ -30,7 +30,8 @@ yx::Result<bool> stop_process(pid_t pid, int sig)
     return yx::ok(true);
   }
 
-  return yx::fail(yx::ErrorCode::process, "failed to signal process: " + std::string(std::strerror(errno)));
+  return yx::fail(yx::ErrorCode::process,
+                  "failed to signal process: " + std::string(std::strerror(errno)));
 }
 
 } // namespace platform

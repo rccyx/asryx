@@ -15,7 +15,8 @@ namespace {
 yx::Result<void> _close_file(int fd, const std::string& path)
 {
   if (close(fd) == -1) {
-    return yx::fail(yx::ErrorCode::audio_read, "failed to close wav file: " + path + ": " + std::strerror(errno));
+    return yx::fail(yx::ErrorCode::audio_read,
+                    "failed to close wav file: " + path + ": " + std::strerror(errno));
   }
 
   return yx::ok();
@@ -33,7 +34,8 @@ yx::Result<void> _read_full(int fd, std::vector<std::uint8_t>& bytes, const std:
         continue;
       }
 
-      return yx::fail(yx::ErrorCode::audio_read, "failed to read wav file: " + path + ": " + std::strerror(errno));
+      return yx::fail(yx::ErrorCode::audio_read,
+                      "failed to read wav file: " + path + ": " + std::strerror(errno));
     }
 
     if (count == 0) {
@@ -53,7 +55,8 @@ yx::Result<std::vector<std::uint8_t>> read_audio_file(const std::string& path)
 {
   const int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
   if (fd == -1) {
-    return yx::fail(yx::ErrorCode::audio_read, "failed to open wav file: " + path + ": " + std::strerror(errno));
+    return yx::fail(yx::ErrorCode::audio_read,
+                    "failed to open wav file: " + path + ": " + std::strerror(errno));
   }
 
   struct stat status{};
@@ -64,7 +67,8 @@ yx::Result<std::vector<std::uint8_t>> read_audio_file(const std::string& path)
       return std::unexpected(closed.error());
     }
 
-    return yx::fail(yx::ErrorCode::audio_read, "failed to determine wav file size: " + path + ": " + error);
+    return yx::fail(yx::ErrorCode::audio_read,
+                    "failed to determine wav file size: " + path + ": " + error);
   }
 
   if (status.st_size < 0) {

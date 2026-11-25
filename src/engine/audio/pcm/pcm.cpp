@@ -32,7 +32,8 @@ yx::Result<std::vector<float>> decode_pcm16(const WavSampleData& data)
   }
 
   if (data.size == 0 || data.size % WAV_BLOCK_ALIGN != 0) {
-    return yx::fail(yx::ErrorCode::audio_format, "invalid wav data: expected complete mono s16 samples");
+    return yx::fail(yx::ErrorCode::audio_format,
+                    "invalid wav data: expected complete mono s16 samples");
   }
 
   const size_t sample_count = data.size / WAV_BLOCK_ALIGN;

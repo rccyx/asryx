@@ -66,7 +66,8 @@ bool is_owned_path(const std::filesystem::path& path)
 yx::Result<void> safe_delete_file(const std::filesystem::path& path)
 {
   if (!is_owned_path(path)) {
-    return yx::fail(yx::ErrorCode::filesystem, "Permission denied: path is not owned by asryx: " + path.string());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "Permission denied: path is not owned by asryx: " + path.string());
   }
 
   std::error_code error;
@@ -76,7 +77,8 @@ yx::Result<void> safe_delete_file(const std::filesystem::path& path)
   }
 
   if (error) {
-    return yx::fail(yx::ErrorCode::filesystem, "failed to inspect file for deletion: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to inspect file for deletion: " + error.message());
   }
 
   if (!std::filesystem::exists(status)) {
@@ -94,7 +96,8 @@ yx::Result<void> safe_delete_file(const std::filesystem::path& path)
 yx::Result<void> safe_delete_directory(const std::filesystem::path& path)
 {
   if (!is_owned_path(path)) {
-    return yx::fail(yx::ErrorCode::filesystem, "Permission denied: path is not owned by asryx: " + path.string());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "Permission denied: path is not owned by asryx: " + path.string());
   }
 
   std::error_code error;
@@ -106,7 +109,8 @@ yx::Result<void> safe_delete_directory(const std::filesystem::path& path)
   }
 
   if (error) {
-    return yx::fail(yx::ErrorCode::filesystem, "failed to inspect directory for deletion: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "failed to inspect directory for deletion: " + error.message());
   }
 
   return yx::ok();

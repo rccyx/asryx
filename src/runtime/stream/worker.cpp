@@ -4,7 +4,6 @@
 #include "engine/audio/wav/follow.hpp"
 #include "engine/engine.hpp"
 #include "engine/transcription/rolling/rolling.hpp"
-#include "engine/transcription/vad/speech.hpp"
 #include "engine/transcription/whisper/api.hpp"
 #include "model/model.hpp"
 #include "runtime/session/session.hpp"
@@ -49,32 +48,17 @@ yx::Result<engine::TranscriptionRequest> _request_for(const Path& dir)
   });
 }
 
-yx::Result<std::vector<asr::rolling::Segment>> _decode(asr::whisper::TranscribeInput input)
+yx::Result<std::vector<asr::rolling::Word>> _decode(asr::whisper::TranscribeInput input)
 {
   if (!asr::whisper::transcribe(input)) {
     return yx::fail(yx::ErrorCode::transcription, "rolling Whisper decode failed");
   }
-  const auto text = asr::whisper::read_output(*input.ctx);
-  auto segments = asr::whisper::read_segments(*input.ctx);
-  const double speech = asr::whisper::detected_speech_seconds(
-      {.vad_model_path = input.request->vad_model_path, .samples = input.samples});
-  if (asr::vad::looks_suspicious(text, speech)) {
-    input.use_vad = false;
-    input.permissive_no_speech = true;
-    if (asr::whisper::transcribe(input) &&
-        asr::vad::retry_is_better(text, asr::whisper::read_output(*input.ctx), speech))
-    {
-      segments = asr::whisper::read_segments(*input.ctx);
-    }
-  }
-  std::vector<asr::rolling::Segment> decoded;
-  decoded.reserve(segments.size());
-  for (const auto& segment : segments) {
-    if (segment.t0_cs < 0 || segment.t1_cs < segment.t0_cs) {
-      return yx::fail(yx::ErrorCode::transcription, "invalid Whisper segment time");
-    }
-    decoded.push_back({static_cast<std::uint64_t>(segment.t0_cs) * 160,
-                       static_cast<std::uint64_t>(segment.t1_cs) * 160, segment.text});
+  const auto words = asr::whisper::read_words(*input.ctx);
+  std::vector<asr::rolling::Word> decoded;
+  decoded.reserve(words.size());
+  for (const auto& word : words) {
+    decoded.push_back({static_cast<std::uint64_t>(word.t0_cs) * 160,
+                       static_cast<std::uint64_t>(word.t1_cs) * 160, word.text});
   }
   return yx::ok(std::move(decoded));
 }
@@ -140,13 +124,16 @@ yx::Result<std::string> compute(const Path& dir)
   if (!context) {
     return std::unexpected(context.error());
   }
-  asr::rolling::Processor processor([&](std::span<const float> audio) {
-    return _decode({.ctx = &*context,
-                    .request = &*request,
-                    .samples = audio,
-                    .use_vad = true,
-                    .permissive_no_speech = false});
-  });
+  asr::rolling::Processor processor(
+      [&](std::span<const float> audio, std::string_view prompt) {
+        return _decode({.ctx = &*context,
+                        .request = &*request,
+                        .samples = audio,
+                        .use_vad = false,
+                        .permissive_no_speech = false,
+                        .prompt_override = std::string(prompt)});
+      },
+      request->prompt);
   auto wav = _open_wav(dir);
   if (!wav) {
     return std::unexpected(wav.error());

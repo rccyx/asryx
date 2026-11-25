@@ -53,7 +53,8 @@ yx::Result<size_t> validate_riff_wave(const std::vector<std::uint8_t>& bytes)
 
   const std::uint64_t declared_file_size = static_cast<std::uint64_t>(*declared_size) + 8U;
   if (declared_file_size != bytes.size()) {
-    return yx::fail(yx::ErrorCode::audio_format, "invalid wav file: RIFF size does not match file size");
+    return yx::fail(yx::ErrorCode::audio_format,
+                    "invalid wav file: RIFF size does not match file size");
   }
 
   return yx::ok(bytes.size());

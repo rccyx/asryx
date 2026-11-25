@@ -48,10 +48,13 @@ yx::Result<void> _write_text(const Path& file, const std::string& text)
 {
   std::ofstream out(file, std::ios::binary | std::ios::trunc);
   if (!out || !(out << text) || !out.flush()) {
-    return yx::fail(yx::ErrorCode::filesystem, "cannot write rolling session file: " + file.string());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "cannot write rolling session file: " + file.string());
   }
   out.close();
-  return out ? yx::ok() : yx::Result<void>(yx::fail(yx::ErrorCode::filesystem, "cannot close rolling session file"));
+  return out ? yx::ok()
+             : yx::Result<void>(
+                   yx::fail(yx::ErrorCode::filesystem, "cannot close rolling session file"));
 }
 
 yx::Result<void> _await_worker(const Path& dir)
@@ -196,7 +199,8 @@ yx::Result<int> run_worker()
   std::error_code error;
   std::filesystem::rename(dir / "stream.txt.tmp", dir / "stream.txt", error);
   if (error) {
-    return yx::fail(yx::ErrorCode::filesystem, "cannot publish rolling transcript: " + error.message());
+    return yx::fail(yx::ErrorCode::filesystem,
+                    "cannot publish rolling transcript: " + error.message());
   }
   return _write_text(dir / "stream.done", "").transform([] { return 0; });
 }

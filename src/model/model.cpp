@@ -35,12 +35,14 @@ yx::Result<void> _run_whisper_model_downloader(const std::string& name)
   }
 
   if (!std::filesystem::exists(*source_dir / ".git")) {
-    return yx::fail(yx::ErrorCode::invalid_argument, "missing whisper.cpp checkout: " + source_dir->string() +
-                    ". Run ./package/install first.");
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "missing whisper.cpp checkout: " + source_dir->string() +
+                        ". Run ./package/install first.");
   }
 
   if (!std::filesystem::exists(*downloader)) {
-    return yx::fail(yx::ErrorCode::invalid_argument, "missing whisper.cpp model downloader: " + downloader->string());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "missing whisper.cpp model downloader: " + downloader->string());
   }
 
   std::cout << "Downloading model " << name << " via whisper.cpp downloader...\n";
@@ -144,8 +146,9 @@ yx::Result<void> validate_config(const config::Config& cfg)
   if (is_english_only_model(cfg.model) && cfg.language != constants::config::auto_language &&
       cfg.language != constants::config::english_language)
   {
-    return yx::fail(yx::ErrorCode::invalid_argument, "active model " + cfg.model +
-                    " is English-only; use a multilingual model for " + cfg.language);
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "active model " + cfg.model +
+                        " is English-only; use a multilingual model for " + cfg.language);
   }
 
   return yx::ok();
@@ -159,7 +162,8 @@ yx::Result<void> validate_vad_model()
   }
 
   if (!store::file_exists_nonempty(*path)) {
-    return yx::fail(yx::ErrorCode::invalid_argument, "VAD model is not installed: " + path->string());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "VAD model is not installed: " + path->string());
   }
 
   return yx::ok();
@@ -262,7 +266,8 @@ yx::Result<void> install_model(const std::string& name)
   }
 
   if (!store::file_exists_nonempty(target_path)) {
-    return yx::fail(yx::ErrorCode::invalid_argument, "model install did not create " + target_path.string());
+    return yx::fail(yx::ErrorCode::invalid_argument,
+                    "model install did not create " + target_path.string());
   }
 
   std::cout << "Model " << name << " installed successfully.\n";
@@ -277,8 +282,9 @@ yx::Result<void> use_model(const std::string& name)
 
   return is_model_installed(name).and_then([&name](bool installed) -> yx::Result<void> {
     if (!installed) {
-      return yx::fail(yx::ErrorCode::invalid_argument, "model '" + name +
-                      "' is not installed. Install it with: asryx --model install " + name);
+      return yx::fail(yx::ErrorCode::invalid_argument,
+                      "model '" + name +
+                          "' is not installed. Install it with: asryx --model install " + name);
     }
 
     return config::load_config().and_then([&name](config::Config cfg) {
@@ -317,8 +323,9 @@ yx::Result<void> uninstall_model(const std::string& name)
     return config::load_config().and_then(
         [&name, path](const config::Config& cfg) -> yx::Result<void> {
           if (cfg.model == name) {
-            return yx::fail(yx::ErrorCode::invalid_argument, "cannot uninstall active model '" + name +
-                            "'; switch models first with: asryx --model use <other>");
+            return yx::fail(yx::ErrorCode::invalid_argument,
+                            "cannot uninstall active model '" + name +
+                                "'; switch models first with: asryx --model use <other>");
           }
 
           return platform::safe_delete_file(path).transform(

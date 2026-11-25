@@ -31,7 +31,8 @@ yx::Result<std::int64_t> _data_offset(const std::vector<std::uint8_t>& head)
     }
     if (chunk_is(head, {pos, "data"})) {
       return format_ok ? yx::ok(static_cast<std::int64_t>(pos + 8))
-                       : yx::Result<std::int64_t>(yx::fail(yx::ErrorCode::audio_format, "expected mono 16 kHz PCM16 WAV"));
+                       : yx::Result<std::int64_t>(yx::fail(yx::ErrorCode::audio_format,
+                                                           "expected mono 16 kHz PCM16 WAV"));
     }
     const auto next = pos + 8 + static_cast<std::size_t>(bytes) + (bytes & 1U);
     if (next <= pos || next > head.size()) {
@@ -65,7 +66,8 @@ yx::Result<WavFollower> WavFollower::open(const std::filesystem::path& path)
 {
   const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
   if (fd < 0) {
-    return yx::fail(yx::ErrorCode::audio_read, "cannot open growing WAV: " + std::string(std::strerror(errno)));
+    return yx::fail(yx::ErrorCode::audio_read,
+                    "cannot open growing WAV: " + std::string(std::strerror(errno)));
   }
   std::vector<std::uint8_t> head(4096);
   ssize_t count;
@@ -102,7 +104,8 @@ yx::Result<std::vector<float>> WavFollower::read()
     n = ::pread(_fd, bytes.data(), count, _offset);
   } while (n < 0 && errno == EINTR);
   if (n < 0) {
-    return yx::fail(yx::ErrorCode::audio_read, "cannot read growing WAV: " + std::string(std::strerror(errno)));
+    return yx::fail(yx::ErrorCode::audio_read,
+                    "cannot read growing WAV: " + std::string(std::strerror(errno)));
   }
   n -= n % 2;
   if (n == 0) {
