@@ -84,8 +84,9 @@ void Processor::_confirm(const std::vector<Word>& current)
   while (confirmed < _previous.size() && confirmed < current.size()) {
     const auto& old = _previous[confirmed];
     const auto& now = current[confirmed];
-    if (!_words_match(old.text, now.text) || _distance(old.begin, now.begin) > TIMESTAMP_TOLERANCE ||
-        now.end + UNSTABLE_TAIL > _received)
+    if (!_words_match(old.text, now.text) ||
+        _distance(old.begin, now.begin) > TIMESTAMP_TOLERANCE ||
+        _distance(old.end, now.end) > TIMESTAMP_TOLERANCE || now.end + UNSTABLE_TAIL > _received)
     {
       break;
     }

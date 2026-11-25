@@ -51,7 +51,7 @@ yx::Result<std::string> transcribe(const TranscriptionRequest& request)
   }
 
   if (!state.transcribe_error.empty()) {
-    return yx::fail(state.transcribe_error);
+    return yx::fail(yx::ErrorCode::audio_format, state.transcribe_error);
   }
 
   return yx::ok(state.transcript);

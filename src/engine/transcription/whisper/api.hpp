@@ -4,6 +4,7 @@
 #include "engine/engine.hpp"
 #include "error.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <span>
@@ -14,13 +15,6 @@ namespace engine::transcription::whisper {
 
 struct _context_state;
 struct TranscribeInput;
-
-struct Segment
-{
-  std::int64_t t0_cs;
-  std::int64_t t1_cs;
-  std::string text;
-};
 
 struct Word
 {
@@ -46,7 +40,6 @@ private:
   friend yx::Result<int> prompt_token_count(const Context& ctx, const std::string& prompt);
   friend bool transcribe(const TranscribeInput& input);
   friend std::string read_output(const Context& ctx);
-  friend std::vector<Segment> read_segments(const Context& ctx);
   friend std::vector<Word> read_words(const Context& ctx);
 
   std::unique_ptr<_context_state> _state;
@@ -74,9 +67,9 @@ yx::Result<Context> load_context(const std::string& model_path);
 yx::Result<int> prompt_token_count(const Context& ctx, const std::string& prompt);
 bool transcribe(const TranscribeInput& input);
 std::string read_output(const Context& ctx);
-std::vector<Segment> read_segments(const Context& ctx);
 std::vector<Word> read_words(const Context& ctx);
 double detected_speech_seconds(const SpeechInput& input);
+yx::Result<std::size_t> speech_end(const SpeechInput& input);
 
 } // namespace engine::transcription::whisper
 

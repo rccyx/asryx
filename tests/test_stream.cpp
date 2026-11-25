@@ -6,25 +6,26 @@
 #include <filesystem>
 #include <iostream>
 #include <libassert/assert.hpp>
+#include <string_view>
 #include <utility>
 
 namespace {
 
 namespace rolling = engine::transcription::rolling;
+using Words = std::vector<rolling::Word>;
 
 void _repeated_words_survive_confirmed_segment_trimming()
 {
-  rolling::Processor processor(
-      [](std::span<const float> audio) -> yx::Result<std::vector<rolling::Segment>> {
-        const auto start = static_cast<std::uint64_t>(audio.front());
-        const auto seconds = audio.size() / rolling::RATE;
-        std::vector<rolling::Segment> segments;
-        for (std::uint64_t t = 0; t < seconds; ++t) {
-          segments.push_back({t * rolling::RATE, (t + 1) * rolling::RATE, " go"});
-        }
-        ASSERT(start + seconds <= 65);
-        return yx::ok(std::move(segments));
-      });
+  rolling::Processor processor([](std::span<const float> audio, std::string_view) {
+    const auto start = static_cast<std::uint64_t>(audio.front());
+    const auto seconds = audio.size() / rolling::RATE;
+    Words words;
+    for (std::uint64_t t = 0; t < seconds; ++t) {
+      words.push_back({t * rolling::RATE, (t + 1) * rolling::RATE, " go"});
+    }
+    ASSERT(start + seconds <= 65);
+    return yx::ok(std::move(words));
+  });
   std::vector<float> samples(65 * rolling::RATE);
   for (std::size_t i = 0; i < samples.size(); ++i) {
     samples[i] = static_cast<float>(i / rolling::RATE);
@@ -39,30 +40,52 @@ void _repeated_words_survive_confirmed_segment_trimming()
   ASSERT(*transcript == expected);
 }
 
-yx::Result<std::vector<rolling::Segment>> _continuous_speech(std::span<const float> audio)
+void _word_with_unstable_end_is_not_repeated()
 {
-  return yx::ok(std::vector<rolling::Segment>{
-      {0, audio.size(), " continuous speech"}
+  rolling::Processor processor([](std::span<const float> audio, std::string_view) {
+    const auto end = audio.size() == 5 * rolling::RATE ? 3 * rolling::RATE : rolling::RATE / 2;
+    return yx::ok(Words{
+        {0, end, " first"}
+    });
   });
+  const std::vector<float> samples(11 * rolling::RATE);
+  ASSERT(processor.append(samples).has_value());
+  const auto transcript = processor.finish();
+  ASSERT(transcript.has_value());
+  ASSERT(*transcript == " first");
 }
 
-void _unconfirmed_window_requires_offline_fallback()
+void _speech_after_long_silence_survives_window_advance()
 {
-  rolling::Processor processor(_continuous_speech);
-  const std::vector<float> samples(30 * rolling::RATE);
-  const auto appended = processor.append(samples);
-  ASSERT(!appended.has_value());
-  ASSERT(appended.error().message.find("no confirmed boundary") != std::string::npos);
+  rolling::Processor processor([](std::span<const float> audio, std::string_view) {
+    if (audio.back() == 0.0F) {
+      return yx::ok(Words{});
+    }
+    return yx::ok(Words{
+        {audio.size() - rolling::RATE, audio.size(), " speech after silence"}
+    });
+  });
+  const std::vector<float> silence(30 * rolling::RATE);
+  const std::vector<float> speech(rolling::RATE, 1.0F);
+  ASSERT(processor.append(silence).has_value());
+  ASSERT(processor.append(speech).has_value());
+  const auto transcript = processor.finish();
+  ASSERT(transcript.has_value());
+  ASSERT(*transcript == " speech after silence");
 }
 
 void _short_recording_decodes_at_finish()
 {
-  rolling::Processor processor(_continuous_speech);
+  rolling::Processor processor([](std::span<const float> audio, std::string_view) {
+    return yx::ok(Words{
+        {0, audio.size(), " short recording"}
+    });
+  });
   const std::vector<float> samples(2 * rolling::RATE);
   ASSERT(processor.append(samples).has_value());
   const auto transcript = processor.finish();
   ASSERT(transcript.has_value());
-  ASSERT(*transcript == " continuous speech");
+  ASSERT(*transcript == " short recording");
 }
 
 void _worker_failure_transcribes_original_recording()
@@ -114,7 +137,8 @@ void _cancel_rolling_recording_never_delivers()
 void run_test_stream()
 {
   _repeated_words_survive_confirmed_segment_trimming();
-  _unconfirmed_window_requires_offline_fallback();
+  _word_with_unstable_end_is_not_repeated();
+  _speech_after_long_silence_survives_window_advance();
   _short_recording_decodes_at_finish();
   _worker_failure_transcribes_original_recording();
   _completed_worker_uses_existing_delivery();

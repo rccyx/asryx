@@ -50,6 +50,17 @@ yx::Result<engine::TranscriptionRequest> _request_for(const Path& dir)
 
 yx::Result<std::vector<asr::rolling::Word>> _decode(asr::whisper::TranscribeInput input)
 {
+  const auto end = asr::whisper::speech_end(
+      {.vad_model_path = input.request->vad_model_path, .samples = input.samples});
+  if (!end) {
+    return std::unexpected(end.error());
+  }
+  if (*end == 0) {
+    return yx::ok<std::vector<asr::rolling::Word>>();
+  }
+
+  // whisper's internal vad compresses time, but rolling cuts need original sample offsets.
+  input.samples = input.samples.first(*end);
   if (!asr::whisper::transcribe(input)) {
     return yx::fail(yx::ErrorCode::transcription, "rolling Whisper decode failed");
   }
