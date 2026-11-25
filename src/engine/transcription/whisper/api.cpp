@@ -109,8 +109,8 @@ whisper_full_params _transcription_params(const TranscribeInput& input, whisper_
   whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
   params.temperature = 0.0F;
-  params.temperature_inc = 0.2F;
-  params.greedy.best_of = 5;
+  params.temperature_inc = input.fast_decode ? 0.0F : 0.2F;
+  params.greedy.best_of = input.fast_decode ? 1 : 5;
   params.no_context = true;
 
   params.n_threads = inference::resolve_threads();
@@ -118,6 +118,7 @@ whisper_full_params _transcription_params(const TranscribeInput& input, whisper_
   params.print_realtime = false;
   params.print_timestamps = false;
   params.no_timestamps = false;
+  params.token_timestamps = input.token_timestamps;
 
   params.suppress_blank = true;
   params.suppress_nst = true;
@@ -170,8 +171,7 @@ yx::Result<Context> load_context(const std::string& model_path)
   state->ctx.reset(whisper_init_from_file_with_params(model_path.c_str(), context_params));
 
   if (state->ctx == nullptr) {
-    return yx::fail(yx::ErrorCode::transcription,
-                    "failed to initialize whisper model: " + model_path);
+    return yx::fail(yx::ErrorCode::transcription, "failed to initialize whisper model: " + model_path);
   }
 
   return yx::ok(Context(std::move(state)));
@@ -234,7 +234,13 @@ std::vector<Word> read_words(const Context& ctx)
   std::vector<Word> words;
 
   for (int s = 0; s < n_segments; ++s) {
+    const std::int64_t seg_t0 = std::max<std::int64_t>(0, whisper_full_get_segment_t0(raw, s));
+    const std::int64_t seg_t1 = std::max<std::int64_t>(seg_t0, whisper_full_get_segment_t1(raw, s));
     const int n_tokens = whisper_full_n_tokens(raw, s);
+
+    std::vector<Word> seg_words;
+    bool has_token_ts = false;
+
     for (int t = 0; t < n_tokens; ++t) {
       const whisper_token_data data = whisper_full_get_token_data(raw, s, t);
       if (data.id >= eot) {
@@ -246,18 +252,50 @@ std::vector<Word> read_words(const Context& ctx)
         continue;
       }
 
-      std::string piece(raw_text);
-      const std::int64_t t0 = std::max<std::int64_t>(0, data.t0);
-      const std::int64_t t1 = std::max<std::int64_t>(t0, data.t1);
+      if (data.t1 > data.t0 || data.t0 > seg_t0) {
+        has_token_ts = true;
+      }
 
-      const bool starts_word = words.empty() || static_cast<unsigned char>(piece.front()) <= 0x20U;
+      std::string piece(raw_text);
+      const std::int64_t t0 = std::clamp<std::int64_t>(data.t0, seg_t0, seg_t1);
+      const std::int64_t t1 = std::clamp<std::int64_t>(data.t1, t0, seg_t1);
+
+      const bool starts_word =
+          seg_words.empty() || static_cast<unsigned char>(piece.front()) <= 0x20U;
       if (starts_word) {
-        words.push_back({t0, t1, std::move(piece)});
+        if (seg_words.empty() && !words.empty() &&
+            static_cast<unsigned char>(piece.front()) > 0x20U)
+        {
+          piece.insert(piece.begin(), ' ');
+        }
+        seg_words.push_back({t0, t1, std::move(piece)});
       }
       else {
-        words.back().t1_cs = std::max(words.back().t1_cs, t1);
-        words.back().text += piece;
+        seg_words.back().t1_cs = std::max(seg_words.back().t1_cs, t1);
+        seg_words.back().text += piece;
       }
+    }
+
+    if (!seg_words.empty() && !has_token_ts && seg_t1 > seg_t0) {
+      std::size_t total_chars = 0;
+      for (const auto& w : seg_words) {
+        total_chars += w.text.size();
+      }
+      if (total_chars > 0) {
+        std::size_t cursor = 0;
+        const std::int64_t span = seg_t1 - seg_t0;
+        for (auto& w : seg_words) {
+          w.t0_cs = seg_t0 + (span * static_cast<std::int64_t>(cursor)) /
+                                 static_cast<std::int64_t>(total_chars);
+          cursor += w.text.size();
+          w.t1_cs = seg_t0 + (span * static_cast<std::int64_t>(cursor)) /
+                                 static_cast<std::int64_t>(total_chars);
+        }
+      }
+    }
+
+    for (auto& w : seg_words) {
+      words.push_back(std::move(w));
     }
   }
 

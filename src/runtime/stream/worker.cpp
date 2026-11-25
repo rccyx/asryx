@@ -101,13 +101,13 @@ yx::Result<std::string> _follow(const FollowInput& input)
       }
       continue;
     }
-    if (finishing) {
-      return processor.finish();
-    }
     if (!session::live_recorder_pid(dir)) {
+      if (finishing) {
+        return processor.finish();
+      }
       return yx::fail(yx::ErrorCode::recorder, "recorder exited before rolling session completed");
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(40));
+    std::this_thread::sleep_for(std::chrono::milliseconds(finishing ? 10 : 40));
   }
   return yx::fail(yx::ErrorCode::cancelled, "rolling transcription cancelled");
 }
@@ -131,7 +131,9 @@ yx::Result<std::string> compute(const Path& dir)
                         .samples = audio,
                         .use_vad = false,
                         .permissive_no_speech = false,
-                        .prompt_override = std::string(prompt)});
+                        .prompt_override = std::string(prompt),
+                        .fast_decode = true,
+                        .token_timestamps = true});
       },
       request->prompt);
   auto wav = _open_wav(dir);

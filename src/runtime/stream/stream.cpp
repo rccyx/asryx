@@ -167,6 +167,15 @@ yx::Result<void> clean(const Path& dir)
 
 yx::Result<void> stop_and_deliver(const Path& dir, pid_t recorder)
 {
+  const auto state_written =
+      session::write_state(dir, std::string(constants::runtime::transcribing_state));
+  if (!state_written) {
+    return std::unexpected(state_written.error());
+  }
+  const auto finish_written = _write_text(dir / "stream.finish", "");
+  if (!finish_written) {
+    return std::unexpected(finish_written.error());
+  }
   const auto stopped = engine::stop_recording(recorder);
   if (!stopped) {
     return std::unexpected(stopped.error());
@@ -174,10 +183,7 @@ yx::Result<void> stop_and_deliver(const Path& dir, pid_t recorder)
   if (!*stopped) {
     return yx::fail(yx::ErrorCode::recorder, "rolling recorder did not stop");
   }
-  return session::write_state(dir, std::string(constants::runtime::transcribing_state))
-      .and_then([&] { return _write_text(dir / "stream.finish", ""); })
-      .and_then([&] { return _await_worker(dir); })
-      .and_then([&] { return _deliver(dir); });
+  return _await_worker(dir).and_then([&] { return _deliver(dir); });
 }
 
 yx::Result<int> run_worker()

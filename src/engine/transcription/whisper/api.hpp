@@ -60,6 +60,8 @@ struct TranscribeInput
   bool use_vad;
   bool permissive_no_speech;
   std::string prompt_override = {};
+  bool fast_decode = false;
+  bool token_timestamps = false;
 };
 
 struct SpeechInput

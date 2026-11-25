@@ -1,6 +1,7 @@
 #include "engine/transcription/rolling/rolling.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <utility>
 
@@ -8,7 +9,7 @@ namespace engine::transcription::rolling {
 
 namespace {
 
-constexpr std::uint64_t STEP = 3 * RATE;
+constexpr std::uint64_t STEP = 5 * RATE;
 constexpr std::uint64_t LIMIT = 26 * RATE;
 constexpr std::uint64_t UNSTABLE_TAIL = RATE;
 constexpr std::uint64_t TIMESTAMP_TOLERANCE = (3 * RATE) / 2;
@@ -17,6 +18,29 @@ constexpr std::size_t MAX_CONTEXT_CHARS = 220;
 std::uint64_t _distance(std::uint64_t a, std::uint64_t b)
 {
   return a > b ? a - b : b - a;
+}
+
+std::string _normalize_word(std::string_view text)
+{
+  std::string out;
+  out.reserve(text.size());
+  for (char ch : text) {
+    const auto byte = static_cast<unsigned char>(ch);
+    if (std::isalnum(byte) != 0 || byte >= 0x80U) {
+      out.push_back(static_cast<char>(std::tolower(byte)));
+    }
+  }
+  return out;
+}
+
+bool _words_match(std::string_view a, std::string_view b)
+{
+  if (a == b) {
+    return true;
+  }
+  const std::string na = _normalize_word(a);
+  const std::string nb = _normalize_word(b);
+  return !na.empty() && na == nb;
 }
 
 } // namespace
@@ -60,7 +84,7 @@ void Processor::_confirm(const std::vector<Word>& current)
   while (confirmed < _previous.size() && confirmed < current.size()) {
     const auto& old = _previous[confirmed];
     const auto& now = current[confirmed];
-    if (old.text != now.text || _distance(old.begin, now.begin) > TIMESTAMP_TOLERANCE ||
+    if (!_words_match(old.text, now.text) || _distance(old.begin, now.begin) > TIMESTAMP_TOLERANCE ||
         now.end + UNSTABLE_TAIL > _received)
     {
       break;
@@ -71,9 +95,11 @@ void Processor::_confirm(const std::vector<Word>& current)
 
   if (confirmed != 0) {
     const auto cut = current[confirmed - 1].end;
-    const auto count = static_cast<std::ptrdiff_t>(cut - _base);
-    _audio.erase(_audio.begin(), _audio.begin() + count);
-    _base = cut;
+    if (cut > _base) {
+      const auto count = static_cast<std::ptrdiff_t>(cut - _base);
+      _audio.erase(_audio.begin(), _audio.begin() + count);
+      _base = cut;
+    }
   }
   _previous.assign(current.begin() + static_cast<std::ptrdiff_t>(confirmed), current.end());
 }
@@ -91,7 +117,7 @@ void Processor::_force_advance(const std::vector<Word>& current)
     }
   }
 
-  if (cut == _base) {
+  if (cut <= _base) {
     const auto drop = std::min<std::size_t>(static_cast<std::size_t>(STEP), _audio.size());
     _audio.erase(_audio.begin(), _audio.begin() + static_cast<std::ptrdiff_t>(drop));
     _base += static_cast<std::uint64_t>(drop);
